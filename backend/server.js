@@ -39,7 +39,6 @@ const authenticateToken = (req, res, next) => {
   });
 };
 
-
 // User registration
 app.post('/api/register', async (req, res) => {
   try {
@@ -56,8 +55,8 @@ app.post('/api/register', async (req, res) => {
     
     // Insert new user
     const result = await pool.query(
-      'INSERT INTO users (username, password, first_name, last_name) VALUES ($1, $2, $3, $4) RETURNING id',
-      [username, hashedPassword, firstName, lastName]
+      'INSERT INTO users (username, password, first_name, last_name, user_type) VALUES ($1, $2, $3, $4, $5) RETURNING id',
+      [username, hashedPassword, firstName, lastName, 'admin']
     );
     
     res.status(201).json({ message: 'User registered successfully', userId: result.rows[0].id });
@@ -88,30 +87,15 @@ app.post('/api/login', async (req, res) => {
     
     // Generate JWT
     const token = jwt.sign(
-      { id: user.id, username: user.username, isAdmin: user.is_admin },
+      { id: user.id, username: user.username, userType: user.user_type },
       process.env.JWT_SECRET,
       { expiresIn: '1h' }
     );
     
-    res.json({ message: 'Logged in successfully', token });
+    res.json({ message: 'Logged in successfully', token, userType: user.user_type });
   } catch (error) {
     console.error('Error logging in:', error);
     res.status(500).json({ message: 'Error logging in' });
-  }
-});
-
-// Create a new court
-app.post('/api/courts', authenticateToken, async (req, res) => {
-  try {
-    const { name } = req.body;
-    const result = await pool.query(
-      'INSERT INTO courts (name) VALUES ($1) RETURNING *',
-      [name]
-    );
-    res.status(201).json(result.rows[0]);
-  } catch (error) {
-    console.error('Error creating court:', error);
-    res.status(500).json({ message: 'Error creating court' });
   }
 });
 
@@ -126,18 +110,40 @@ app.get('/api/courts', authenticateToken, async (req, res) => {
   }
 });
 
+// Add a court
+app.post('/api/courts', authenticateToken, async (req, res) => {
+  try {
+    const { name } = req.body;
+    const result = await pool.query('INSERT INTO courts (name) VALUES ($1) RETURNING *', [name]);
+    res.status(201).json(result.rows[0]);
+  } catch (error) {
+    console.error('Error adding court:', error);
+    res.status(500).json({ message: 'Error adding court' });
+  }
+});
+
+// Remove a court
+app.delete('/api/courts/:id', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    await pool.query('DELETE FROM courts WHERE id = $1', [id]);
+    res.status(200).json({ message: 'Court removed successfully' });
+  } catch (error) {
+    console.error('Error removing court:', error);
+    res.status(500).json({ message: 'Error removing court' });
+  }
+});
+
 // Lock a court
 app.post('/api/courts/:id/lock', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
-    const { unlockTime, reason } = req.body;
+    const { startTime, duration } = req.body;
+    const unlockTime = new Date(new Date(startTime).getTime() + duration * 60000);
     const result = await pool.query(
-      'UPDATE courts SET is_locked = true, unlock_time = $1, lock_reason = $2 WHERE id = $3 RETURNING *',
-      [unlockTime, reason, id]
+      'UPDATE courts SET is_locked = true, unlock_time = $1 WHERE id = $2 RETURNING *',
+      [unlockTime, id]
     );
-    if (result.rows.length === 0) {
-      return res.status(404).json({ message: 'Court not found' });
-    }
     res.json(result.rows[0]);
   } catch (error) {
     console.error('Error locking court:', error);
@@ -150,7 +156,7 @@ app.post('/api/courts/:id/unlock', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
     const result = await pool.query(
-      'UPDATE courts SET is_locked = false, unlock_time = null, lock_reason = null WHERE id = $1 RETURNING *',
+      'UPDATE courts SET is_locked = false, unlock_time = null WHERE id = $1 RETURNING *',
       [id]
     );
     if (result.rows.length === 0) {
@@ -163,10 +169,53 @@ app.post('/api/courts/:id/unlock', authenticateToken, async (req, res) => {
   }
 });
 
+const zodiacAnimals = ['Rat', 'Ox', 'Tiger', 'Rabbit', 'Dragon', 'Snake', 'Horse', 'Goat', 'Monkey', 'Rooster', 'Dog', 'Pig'];
 
+// Register a player
+app.post('/api/register-player', async (req, res) => {
+  try {
+    const { firstName, lastName } = req.body;
+    
+    // Generate username
+    let username = firstName.toLowerCase();
+    let suffix = 1;
+    while (true) {
+      const existingUser = await pool.query('SELECT * FROM users WHERE username = $1 AND user_type = $2', [username, 'player']);
+      if (existingUser.rows.length === 0) break;
+      username = `${firstName.toLowerCase()}${++suffix}`;
+    }
+    
+    // Generate temporary password
+    const tempPassword = zodiacAnimals[Math.floor(Math.random() * zodiacAnimals.length)];
+    
+    // Insert new player
+    const result = await pool.query(
+      'INSERT INTO users (username, password, first_name, last_name, user_type, temp_password) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, username, temp_password',
+      [username, 'temp', firstName, lastName, 'player', tempPassword]
+    );
+    
+    res.status(201).json({ 
+      message: 'Player registered successfully',
+      username: result.rows[0].username,
+      tempPassword: result.rows[0].temp_password
+    });
+  } catch (error) {
+    console.error('Error registering player:', error);
+    res.status(500).json({ message: 'Error registering player' });
+  }
+});
 
+// Get all players
+app.get('/api/players', authenticateToken, async (req, res) => {
+  try {
+    const result = await pool.query('SELECT id, username, first_name, last_name, temp_password FROM users WHERE user_type = $1', ['player']);
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error fetching players:', error);
+    res.status(500).json({ message: 'Error fetching players' });
+  }
+});
 
-//end
 app.listen(port, () => {
   console.log(`Server running on port ${port}`);
 });
