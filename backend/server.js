@@ -1,23 +1,30 @@
 const express = require('express');
-const cors = require('cors');
-const { Pool } = require('pg');
-const bcrypt = require('bcrypt');
-const jwt = require('jsonwebtoken');
-require('dotenv').config();
+   const cors = require('cors');
+   const { Pool } = require('pg');
+   const bcrypt = require('bcrypt');
+   const jwt = require('jsonwebtoken');
+   require('dotenv').config();
 
-const app = express();
-const port = process.env.PORT || 5000;
+   const app = express();
+   const port = process.env.PORT || 5000;
 
-app.use(cors({
-  origin: 'http://134.209.64.243',
-  methods: ['GET', 'POST', 'PUT', 'DELETE'],
-  allowedHeaders: ['Content-Type', 'Authorization']
-}));
-app.use(express.json());
+   function startServer() {
+     const server = app.listen(port, '0.0.0.0', () => {
+       console.log(`Server running on port ${port}`);
+     });
 
-app.listen(process.env.PORT || 5000, '0.0.0.0', () => {
-  console.log(`Server running on port ${process.env.PORT || 5000}`);
-});
+     server.on('error', (e) => {
+       if (e.code === 'EADDRINUSE') {
+         console.log('Address in use, retrying...');
+         setTimeout(() => {
+           server.close();
+           startServer();
+         }, 1000);
+       } else {
+         console.error('Server error:', e);
+       }
+     });
+   }
 
 // Database connection
 const pool = new Pool({
@@ -234,6 +241,4 @@ app.get('/api/players', authenticateToken, async (req, res) => {
   }
 });
 
-app.listen(port, () => {
-  console.log(`Server running on port ${port}`);
-});
+startServer();
