@@ -1,30 +1,46 @@
 const express = require('express');
-   const cors = require('cors');
-   const { Pool } = require('pg');
-   const bcrypt = require('bcrypt');
-   const jwt = require('jsonwebtoken');
-   require('dotenv').config();
+const cors = require('cors');
+const { Pool } = require('pg');
+const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
+require('dotenv').config();
 
-   const app = express();
-   const port = process.env.PORT || 5000;
+const app = express();
+const port = process.env.PORT || 5000;
 
-   function startServer() {
-     const server = app.listen(port, '0.0.0.0', () => {
-       console.log(`Server running on port ${port}`);
-     });
+// Middleware
+app.use(cors({
+  origin: 'http://134.209.64.243',
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
+app.use(express.json());  // This line is crucial for parsing JSON bodies
+app.use(express.urlencoded({ extended: true }));  // For parsing application/x-www-form-urlencoded
 
-     server.on('error', (e) => {
-       if (e.code === 'EADDRINUSE') {
-         console.log('Address in use, retrying...');
-         setTimeout(() => {
-           server.close();
-           startServer();
-         }, 1000);
-       } else {
-         console.error('Server error:', e);
-       }
-     });
-   }
+// Logging middleware
+app.use((req, res, next) => {
+  console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
+  console.log('Request body:', req.body);
+  next();
+});
+
+function startServer() {
+  const server = app.listen(port, '0.0.0.0', () => {
+    console.log(`Server running on port ${port}`);
+  });
+
+  server.on('error', (e) => {
+    if (e.code === 'EADDRINUSE') {
+      console.log('Address in use, retrying...');
+      setTimeout(() => {
+        server.close();
+        startServer();
+      }, 1000);
+    } else {
+      console.error('Server error:', e);
+    }
+  });
+}
 
 // Database connection
 const pool = new Pool({
@@ -44,9 +60,9 @@ pool.query('SELECT NOW()', (err, res) => {
 const authenticateToken = (req, res, next) => {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
-  
+
   if (token == null) return res.sendStatus(401);
-  
+
   jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
     if (err) return res.sendStatus(403);
     req.user = user;
@@ -58,22 +74,22 @@ const authenticateToken = (req, res, next) => {
 app.post('/api/register', async (req, res) => {
   try {
     const { username, password, firstName, lastName } = req.body;
-    
+
     // Check if user already exists
     const userExists = await pool.query('SELECT * FROM users WHERE username = $1', [username]);
     if (userExists.rows.length > 0) {
       return res.status(400).json({ message: 'Username already exists' });
     }
-    
+
     // Hash the password
     const hashedPassword = await bcrypt.hash(password, 10);
-    
+
     // Insert new user
     const result = await pool.query(
       'INSERT INTO users (username, password, first_name, last_name, user_type) VALUES ($1, $2, $3, $4, $5) RETURNING id',
       [username, hashedPassword, firstName, lastName, 'admin']
     );
-    
+
     res.status(201).json({ message: 'User registered successfully', userId: result.rows[0].id });
   } catch (error) {
     console.error('Error registering user:', error);
@@ -84,7 +100,12 @@ app.post('/api/register', async (req, res) => {
 // User login
 app.post('/api/login', async (req, res) => {
   try {
+    console.log('Login request body:', req.body);  // Debug log
     const { username, password } = req.body;
+
+    if (!username || !password) {
+      return res.status(400).json({ message: 'Username and password are required' });
+    }
 
     console.log('Login attempt for username:', username);
 
@@ -121,17 +142,6 @@ app.post('/api/login', async (req, res) => {
   } catch (error) {
     console.error('Error logging in:', error);
     res.status(500).json({ message: 'Error logging in', error: error.message });
-  }
-});
-
-// Get all courts
-app.get('/api/courts', authenticateToken, async (req, res) => {
-  try {
-    const result = await pool.query('SELECT * FROM courts');
-    res.json(result.rows);
-  } catch (error) {
-    console.error('Error fetching courts:', error);
-    res.status(500).json({ message: 'Error fetching courts' });
   }
 });
 
