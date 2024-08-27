@@ -8,20 +8,19 @@ function Login() {
   const [password, setPassword] = useState('');
   const navigate = useNavigate();
 
-const handleSubmit = async (e) => {
-  e.preventDefault();
-  console.log('Login attempt with:', { username, password });
-  try {
-    console.log('Sending request to:', `${config.apiBaseUrl}/login`);
-    const response = await axios.post(`${config.apiBaseUrl}/login`, { username, password });
-    console.log('Login response:', response.data);
-    // Handle successful login here (e.g., store token, redirect)
-  } catch (error) {
-    console.error('Login error:', error.response ? error.response.data : error.message);
-    console.error('Full error object:', error);
-    // Handle login error here (e.g., show error message to user)
-  }
-};
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      const response = await axios.post(`${config.apiBaseUrl}/login`, { username, password });
+      console.log('Login successful:', response.data);
+      localStorage.setItem('token', response.data.token);
+      localStorage.setItem('userType', response.data.userType);
+      navigate('/home');  // Navigate to the home page
+    } catch (error) {
+      console.error('Login error:', error.response ? error.response.data : error.message);
+      alert('Login failed. Please try again.');
+    }
+  };
   return (
     <div>
       <h2>Login</h2>
