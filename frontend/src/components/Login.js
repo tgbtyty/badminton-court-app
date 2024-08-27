@@ -11,11 +11,12 @@ function Login() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
+      console.log('Sending login request with:', { username, password });  // Debug log
       const response = await axios.post(`${config.apiBaseUrl}/login`, { username, password });
-      console.log('Login successful:', response.data);
+      console.log('Login response:', response.data);  // Debug log
       localStorage.setItem('token', response.data.token);
       localStorage.setItem('userType', response.data.userType);
-      navigate('/home');  // Navigate to the home page
+      navigate('/home');
     } catch (error) {
       console.error('Login error:', error.response ? error.response.data : error.message);
       alert('Login failed. Please try again.');
@@ -34,6 +35,7 @@ function Login() {
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-primary"
+              required
             />
           </div>
           <div className="mb-6">
@@ -41,8 +43,9 @@ function Login() {
               type="password"
               placeholder="Password"
               value={password}
-              onChange={(e) => setPassword(e.value)}
+              onChange={(e) => setPassword(e.target.value)}
               className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-primary"
+              required
             />
           </div>
           <button 
