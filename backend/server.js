@@ -78,32 +78,42 @@ app.post('/api/register', async (req, res) => {
 app.post('/api/login', async (req, res) => {
   try {
     const { username, password } = req.body;
-    
+
+    console.log('Login attempt for username:', username);
+
     // Check if user exists
     const result = await pool.query('SELECT * FROM users WHERE username = $1', [username]);
     if (result.rows.length === 0) {
+      console.log('User not found:', username);
       return res.status(400).json({ message: 'User not found' });
     }
-    
+
     const user = result.rows[0];
-    
+
     // Check password
     const validPassword = await bcrypt.compare(password, user.password);
     if (!validPassword) {
+      console.log('Invalid password for user:', username);
       return res.status(400).json({ message: 'Invalid password' });
     }
-    
+
     // Generate JWT
+    if (!process.env.JWT_SECRET) {
+      console.error('JWT_SECRET is not set in environment variables');
+      return res.status(500).json({ message: 'Server configuration error' });
+    }
+
     const token = jwt.sign(
       { id: user.id, username: user.username, userType: user.user_type },
       process.env.JWT_SECRET,
       { expiresIn: '1h' }
     );
-    
+
+    console.log('Login successful for user:', username);
     res.json({ message: 'Logged in successfully', token, userType: user.user_type });
   } catch (error) {
     console.error('Error logging in:', error);
-    res.status(500).json({ message: 'Error logging in' });
+    res.status(500).json({ message: 'Error logging in', error: error.message });
   }
 });
 
