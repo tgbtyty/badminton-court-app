@@ -222,7 +222,7 @@ const zodiacAnimals = ['Rat', 'Ox', 'Tiger', 'Rabbit', 'Dragon', 'Snake', 'Horse
 // Register a player
 app.post('/api/register-player', async (req, res) => {
   try {
-    const { firstName, lastName, useDropInPackage } = req.body;
+    const { firstName, lastName, packageUses } = req.body;
 
     // Generate username
     let username = firstName.toLowerCase();
@@ -238,8 +238,8 @@ app.post('/api/register-player', async (req, res) => {
 
     // Insert new player
     const result = await pool.query(
-      'INSERT INTO users (username, password, first_name, last_name, user_type, temp_password, use_drop_in_package) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id, username, temp_password',
-      [username, 'temp', firstName, lastName, 'player', tempPassword, useDropInPackage]
+      'INSERT INTO users (username, password, first_name, last_name, user_type, temp_password, package_uses) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id, username, temp_password',
+      [username, 'temp', firstName, lastName, 'player', tempPassword, packageUses]
     );
 
     res.status(201).json({ 
@@ -256,7 +256,7 @@ app.post('/api/register-player', async (req, res) => {
 // Get all players
 app.get('/api/players', authenticateToken, async (req, res) => {
   try {
-    const result = await pool.query('SELECT id, username, first_name, last_name, temp_password, use_drop_in_package FROM users WHERE user_type = $1', ['player']);
+    const result = await pool.query('SELECT id, username, first_name, last_name, temp_password, package_uses FROM users WHERE user_type = $1', ['player']);
     res.json(result.rows);
   } catch (error) {
     console.error('Error fetching players:', error);

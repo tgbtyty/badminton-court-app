@@ -121,7 +121,7 @@ function PlayersListPage() {
                 <th className="py-3 px-4 text-left"><SortButton column="last_name" label="Last Name" /></th>
                 <th className="py-3 px-4 text-left"><SortButton column="username" label="Username" /></th>
                 <th className="py-3 px-4 text-left"><SortButton column="temp_password" label="Temporary Password" /></th>
-                <th className="py-3 px-4 text-left"><SortButton column="use_drop_in_package" label="Drop-in Package" /></th>
+                <th className="py-3 px-4 text-left"><SortButton column="package_uses" label="Package Uses" /></th>
                 <th className="py-3 px-4 text-left">Actions</th>
               </tr>
             </thead>
@@ -132,7 +132,7 @@ function PlayersListPage() {
                   <td className="py-3 px-4">{player.last_name}</td>
                   <td className="py-3 px-4">{player.username}</td>
                   <td className="py-3 px-4">{player.temp_password}</td>
-                  <td className="py-3 px-4">{player.use_drop_in_package ? 'Yes' : 'No'}</td>
+                  <td className="py-3 px-4">{player.package_uses}</td>
                   <td className="py-3 px-4">
                     <button
                       onClick={() => removePlayer(player.id)}
