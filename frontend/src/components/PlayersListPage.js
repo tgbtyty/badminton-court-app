@@ -9,15 +9,11 @@ function PlayersListPage() {
   const [sortColumn, setSortColumn] = useState('');
   const [sortDirection, setSortDirection] = useState('asc');
   const [markedRows, setMarkedRows] = useState({});
+  const [flaggedRows, setFlaggedRows] = useState({});
 
   useEffect(() => {
     fetchPlayers();
     const interval = setInterval(fetchPlayers, 30000); // Refresh every 30 seconds
-    
-    // Load marked rows from local storage
-    const storedMarkedRows = JSON.parse(localStorage.getItem('markedRows') || '{}');
-    setMarkedRows(storedMarkedRows);
-
     return () => clearInterval(interval);
   }, []);
 
@@ -27,6 +23,8 @@ function PlayersListPage() {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
       });
       setPlayers(response.data);
+      setMarkedRows(response.data.reduce((acc, player) => ({ ...acc, [player.id]: player.is_marked }), {}));
+      setFlaggedRows(response.data.reduce((acc, player) => ({ ...acc, [player.id]: player.is_flagged }), {}));
     } catch (error) {
       console.error('Error fetching players:', error);
     }
@@ -40,7 +38,7 @@ function PlayersListPage() {
         });
         setPlayers([]);
         setMarkedRows({});
-        localStorage.removeItem('markedRows');
+        setFlaggedRows({});
       } catch (error) {
         console.error('Error clearing all players:', error);
       }
@@ -57,7 +55,9 @@ function PlayersListPage() {
         const updatedMarkedRows = { ...markedRows };
         delete updatedMarkedRows[id];
         setMarkedRows(updatedMarkedRows);
-        localStorage.setItem('markedRows', JSON.stringify(updatedMarkedRows));
+        const updatedFlaggedRows = { ...flaggedRows };
+        delete updatedFlaggedRows[id];
+        setFlaggedRows(updatedFlaggedRows);
       } catch (error) {
         console.error('Error removing player:', error);
       }
@@ -73,10 +73,30 @@ function PlayersListPage() {
     }
   };
 
-  const toggleMarkRow = (id) => {
-    const updatedMarkedRows = { ...markedRows, [id]: !markedRows[id] };
-    setMarkedRows(updatedMarkedRows);
-    localStorage.setItem('markedRows', JSON.stringify(updatedMarkedRows));
+  const toggleMarkRow = async (id) => {
+    try {
+      await axios.put(`${config.apiBaseUrl}/players/${id}/mark`, {
+        is_marked: !markedRows[id]
+      }, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+      });
+      setMarkedRows({ ...markedRows, [id]: !markedRows[id] });
+    } catch (error) {
+      console.error('Error marking player:', error);
+    }
+  };
+
+  const toggleFlagRow = async (id) => {
+    try {
+      await axios.put(`${config.apiBaseUrl}/players/${id}/flag`, {
+        is_flagged: !flaggedRows[id]
+      }, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+      });
+      setFlaggedRows({ ...flaggedRows, [id]: !flaggedRows[id] });
+    } catch (error) {
+      console.error('Error flagging player:', error);
+    }
   };
 
   const sortedPlayers = [...players].sort((a, b) => {
@@ -107,6 +127,11 @@ function PlayersListPage() {
     </button>
   );
 
+  const formatTime = (dateString) => {
+    const date = new Date(dateString);
+    return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+  };
+
   return (
     <div className="min-h-screen bg-gray-100">
       <header className="bg-primary text-white p-4">
@@ -136,28 +161,37 @@ function PlayersListPage() {
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
           />
         </div>
-        <div className="bg-white shadow-md rounded-lg overflow-hidden">
+        <div className="bg-white shadow-md rounded-lg overflow-hidden overflow-x-auto">
           <table className="min-w-full">
             <thead className="bg-gray-200">
               <tr>
                 <th className="py-3 px-4 text-left">Mark</th>
+                <th className="py-3 px-4 text-left">Flag</th>
                 <th className="py-3 px-4 text-left"><SortButton column="first_name" label="First Name" /></th>
                 <th className="py-3 px-4 text-left"><SortButton column="last_name" label="Last Name" /></th>
                 <th className="py-3 px-4 text-left"><SortButton column="username" label="Username" /></th>
                 <th className="py-3 px-4 text-left"><SortButton column="temp_password" label="Temporary Password" /></th>
                 <th className="py-3 px-4 text-left"><SortButton column="use_drop_in_package" label="Using Package" /></th>
                 <th className="py-3 px-4 text-left"><SortButton column="package_uses" label="Package Uses" /></th>
+                <th className="py-3 px-4 text-left"><SortButton column="created_at" label="Registration Time" /></th>
                 <th className="py-3 px-4 text-left">Actions</th>
               </tr>
             </thead>
             <tbody>
               {filteredPlayers.map(player => (
-                <tr key={player.id} className={`border-t ${markedRows[player.id] ? 'bg-yellow-100' : ''}`}>
+                <tr key={player.id} className={`border-t ${markedRows[player.id] ? 'bg-yellow-100' : ''} ${flaggedRows[player.id] ? 'bg-red-100' : ''}`}>
                   <td className="py-3 px-4">
                     <input 
                       type="checkbox" 
                       checked={markedRows[player.id] || false} 
                       onChange={() => toggleMarkRow(player.id)}
+                    />
+                  </td>
+                  <td className="py-3 px-4">
+                    <input 
+                      type="checkbox" 
+                      checked={flaggedRows[player.id] || false} 
+                      onChange={() => toggleFlagRow(player.id)}
                     />
                   </td>
                   <td className="py-3 px-4">{player.first_name}</td>
@@ -166,6 +200,7 @@ function PlayersListPage() {
                   <td className="py-3 px-4">{player.temp_password}</td>
                   <td className="py-3 px-4">{player.use_drop_in_package || player.package_uses > 0 ? 'Yes' : 'No'}</td>
                   <td className="py-3 px-4">{player.package_uses}</td>
+                  <td className="py-3 px-4">{formatTime(player.created_at)}</td>
                   <td className="py-3 px-4">
                     <button
                       onClick={() => removePlayer(player.id)}

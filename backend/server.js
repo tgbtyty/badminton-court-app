@@ -253,10 +253,10 @@ app.post('/api/register-player', async (req, res) => {
   }
 });
 
-// Get all players
+// Update the existing get all players route to include is_marked and is_flagged
 app.get('/api/players', authenticateToken, async (req, res) => {
   try {
-    const result = await pool.query('SELECT id, username, first_name, last_name, temp_password, package_uses FROM users WHERE user_type = $1', ['player']);
+    const result = await pool.query('SELECT id, username, first_name, last_name, temp_password, use_drop_in_package, package_uses, created_at, is_marked, is_flagged FROM users WHERE user_type = $1', ['player']);
     res.json(result.rows);
   } catch (error) {
     console.error('Error fetching players:', error);
@@ -292,6 +292,43 @@ app.delete('/api/players/:id', authenticateToken, async (req, res) => {
   }
 });
 
+// Mark a player
+app.put('/api/players/:id/mark', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { is_marked } = req.body;
+    const result = await pool.query(
+      'UPDATE users SET is_marked = $1 WHERE id = $2 AND user_type = $3 RETURNING *',
+      [is_marked, id, 'player']
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: 'Player not found' });
+    }
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Error marking player:', error);
+    res.status(500).json({ message: 'Error marking player' });
+  }
+});
+
+// Flag a player
+app.put('/api/players/:id/flag', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { is_flagged } = req.body;
+    const result = await pool.query(
+      'UPDATE users SET is_flagged = $1 WHERE id = $2 AND user_type = $3 RETURNING *',
+      [is_flagged, id, 'player']
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: 'Player not found' });
+    }
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Error flagging player:', error);
+    res.status(500).json({ message: 'Error flagging player' });
+  }
+});
 
 
 startServer();
