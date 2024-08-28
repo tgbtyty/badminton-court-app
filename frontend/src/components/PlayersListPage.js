@@ -12,7 +12,7 @@ function PlayersListPage() {
 
   const fetchPlayers = async () => {
     try {
-      const response = await axios.get('${config.apiBaseUrl}/players', {
+      const response = await axios.get(`${config.apiBaseUrl}/players`, {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
       });
       setPlayers(response.data);
