@@ -6,10 +6,6 @@ import config from '../config';
 function PlayersListPage() {
   const [players, setPlayers] = useState([]);
 
-  useEffect(() => {
-    fetchPlayers();
-  }, []);
-
   const fetchPlayers = async () => {
     try {
       const response = await axios.get(`${config.apiBaseUrl}/players`, {
@@ -20,6 +16,12 @@ function PlayersListPage() {
       console.error('Error fetching players:', error);
     }
   };
+
+  useEffect(() => {
+    fetchPlayers();
+    const interval = setInterval(fetchPlayers, 30000); // Refresh every 30 seconds
+    return () => clearInterval(interval);
+  }, []);
 
   const clearAllPlayers = async () => {
     if (window.confirm('Are you sure you want to clear all players? This action cannot be undone.')) {

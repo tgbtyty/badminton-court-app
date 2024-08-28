@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
 import config from '../config';
+import ThemeColorPicker from './ThemeColorPicker';
 
 function HomePage() {
   const [courts, setCourts] = useState([]);
@@ -58,7 +59,7 @@ function HomePage() {
     try {
       const [hours, minutes] = lockDuration.split(':').map(Number);
       const durationInMinutes = hours * 60 + minutes;
-      await axios.post(`${config.apiBaseUrl}/api/courts/${selectedCourt.id}/lock`, {
+      await axios.post(`${config.apiBaseUrl}/courts/${selectedCourt.id}/lock`, {
         startTime: lockStartTime,
         duration: durationInMinutes
       }, {
@@ -114,11 +115,8 @@ function HomePage() {
           <Link
             to="/player-register"
             className="bg-primary text-white px-6 py-2 rounded hover:bg-green-600 transition duration-300 text-center"
-            onClick={() => {
-              if (!window.confirm('Warning: This action is permanent. Are you sure you want to proceed to the player registration page?')) {
-                return false;
-              }
-            }}
+            target="_blank"
+            rel="noopener noreferrer"
           >
             Player Registration Page
           </Link>
@@ -163,6 +161,7 @@ function HomePage() {
           </div>
         </div>
       )}
+      <ThemeColorPicker />
     </div>
   );
 }
