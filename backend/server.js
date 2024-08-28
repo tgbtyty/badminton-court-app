@@ -264,4 +264,34 @@ app.get('/api/players', authenticateToken, async (req, res) => {
   }
 });
 
+// ... (previous code remains the same)
+
+// Clear all players
+app.delete('/api/players', authenticateToken, async (req, res) => {
+  try {
+    await pool.query('DELETE FROM users WHERE user_type = $1', ['player']);
+    res.json({ message: 'All players cleared successfully' });
+  } catch (error) {
+    console.error('Error clearing all players:', error);
+    res.status(500).json({ message: 'Error clearing all players' });
+  }
+});
+
+// Remove a specific player
+app.delete('/api/players/:id', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await pool.query('DELETE FROM users WHERE id = $1 AND user_type = $2 RETURNING *', [id, 'player']);
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: 'Player not found' });
+    }
+    res.json({ message: 'Player removed successfully' });
+  } catch (error) {
+    console.error('Error removing player:', error);
+    res.status(500).json({ message: 'Error removing player' });
+  }
+});
+
+
+
 startServer();
