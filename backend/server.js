@@ -147,6 +147,17 @@ app.post('/api/login', async (req, res) => {
   }
 });
 
+// Get all courts
+app.get('/api/courts', authenticateToken, async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM courts');
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error fetching courts:', error);
+    res.status(500).json({ message: 'Error fetching courts' });
+  }
+});
+
 // Add a court
 app.post('/api/courts', authenticateToken, async (req, res) => {
   try {
