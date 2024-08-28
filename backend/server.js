@@ -17,6 +17,8 @@ app.use(cors({
 app.use(express.json());  // This line is crucial for parsing JSON bodies
 app.use(express.urlencoded({ extended: true }));  // For parsing application/x-www-form-urlencoded
 
+// ... rest of the server.js file remains the same
+
 // Logging middleware
 app.use((req, res, next) => {
   console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
