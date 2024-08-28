@@ -8,7 +8,7 @@ function Courts() {
   useEffect(() => {
     const fetchCourts = async () => {
       try {
-        const response = await axios.get('${config.apiBaseUrl}/courts', {
+        const response = await axios.get(`${config.apiBaseUrl}/courts`, {
           headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
         });
         setCourts(response.data);
