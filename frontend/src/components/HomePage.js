@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import config from '../config';
 import ThemeColorPicker from './ThemeColorPicker';
@@ -10,6 +10,7 @@ function HomePage() {
   const [selectedCourt, setSelectedCourt] = useState(null);
   const [lockStartTime, setLockStartTime] = useState('');
   const [lockDuration, setLockDuration] = useState('');
+  const navigate = useNavigate();
 
   useEffect(() => {
     fetchCourts();
@@ -72,6 +73,11 @@ function HomePage() {
     }
   };
 
+  const openPlayerRegistration = () => {
+    window.open(`${window.location.origin}/player-register`, '_blank');
+    window.close();
+  };
+
   return (
     <div className="min-h-screen bg-gray-100">
       <header className="bg-primary text-white p-4">
@@ -112,14 +118,12 @@ function HomePage() {
           </button>
         </div>
         <div className="flex flex-col space-y-4">
-          <Link
-            to="/player-register"
+          <button
+            onClick={openPlayerRegistration}
             className="bg-primary text-white px-6 py-2 rounded hover:bg-green-600 transition duration-300 text-center"
-            target="_blank"
-            rel="noopener noreferrer"
           >
             Player Registration Page
-          </Link>
+          </button>
           <Link
             to="/players-list"
             className="bg-primary text-white px-6 py-2 rounded hover:bg-green-600 transition duration-300 text-center"

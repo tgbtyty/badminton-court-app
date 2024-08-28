@@ -6,7 +6,6 @@ import HomePage from './components/HomePage';
 import PlayerRegister from './components/PlayerRegister';
 import PlayersListPage from './components/PlayersListPage';
 import PrivateRoute from './components/PrivateRoute';
-import ThemeColorPicker from './components/ThemeColorPicker';
 import './index.css';
 
 function App() {
@@ -26,7 +25,6 @@ function App() {
           <Route path="/players-list" element={<PrivateRoute><PlayersListPage /></PrivateRoute>} />
           <Route path="/" element={<Navigate to="/login" replace />} />
         </Routes>
-        <ThemeColorPicker />
       </div>
     </Router>
   );
