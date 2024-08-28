@@ -9,7 +9,7 @@ function PlayerRegister() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const response = await axios.post('http://localhost:5000/api/register-player', { firstName, lastName });
+      const response = await axios.post('${config.apiBaseUrl}/register-player', { firstName, lastName });
       setRegistrationResult(response.data);
       setFirstName('');
       setLastName('');
