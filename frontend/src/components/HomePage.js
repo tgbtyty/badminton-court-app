@@ -16,7 +16,7 @@ function HomePage() {
 
   const fetchCourts = async () => {
     try {
-      const response = await axios.get('${config.apiBaseUrl}/courts', {
+      const response = await axios.get(`${config.apiBaseUrl}/courts`, {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
       });
       setCourts(response.data);
@@ -27,7 +27,7 @@ function HomePage() {
 
   const addCourt = async () => {
     try {
-      await axios.post('${config.apiBaseUrl}/courts', { name: `Court ${courts.length + 1}` }, {
+      await axios.post(`${config.apiBaseUrl}/courts`, { name: `Court ${courts.length + 1}` }, {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
       });
       fetchCourts();
