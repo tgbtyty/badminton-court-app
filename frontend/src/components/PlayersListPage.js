@@ -185,15 +185,25 @@ function PlayersListPage() {
                   <td className="py-3 px-4">
                     <button
                       onClick={() => toggleMarkPlayer(player.id)}
-                      className={`text-2xl ${markedPlayers[player.id] ? 'text-green-500' : 'text-gray-300'}`}
+                      className="text-2xl focus:outline-none"
+                      style={{
+                        opacity: markedPlayers[player.id] ? 1 : 0.3,
+                        color: markedPlayers[player.id] ? '#22c55e' : 'inherit', // Green color when marked
+                        transition: 'opacity 0.3s, color 0.3s'
+                      }}
                     >
-                      ✓
+                      ✅
                     </button>
                   </td>
                   <td className="py-3 px-4">
                     <button
                       onClick={() => toggleFlagPlayer(player.id)}
-                      className={`text-2xl ${flaggedPlayers[player.id] ? 'text-red-500' : 'text-gray-300'}`}
+                      className="text-2xl focus:outline-none"
+                      style={{
+                        opacity: flaggedPlayers[player.id] ? 1 : 0.3,
+                        color: flaggedPlayers[player.id] ? '#ef4444' : 'inherit', // Red color when flagged
+                        transition: 'opacity 0.3s, color 0.3s'
+                      }}
                     >
                       🚩
                     </button>
