@@ -27,7 +27,6 @@ function Courts() {
         <div key={court.id}>
           <h3>{court.name}</h3>
           <p>Status: {court.is_locked ? 'Locked' : 'Available'}</p>
-          {/* Add more court details and management options here */}
         </div>
       ))}
     </div>
