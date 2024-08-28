@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
+import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 import config from '../config';
 import ThemeColorPicker from './ThemeColorPicker';
 
@@ -10,6 +11,7 @@ function HomePage() {
   const [selectedCourt, setSelectedCourt] = useState(null);
   const [lockStartTime, setLockStartTime] = useState('');
   const [lockDuration, setLockDuration] = useState('');
+  const [showColorPicker, setShowColorPicker] = useState(false);
 
   useEffect(() => {
     fetchCourts();
@@ -72,38 +74,72 @@ function HomePage() {
     }
   };
 
-  const openPlayerRegistration = (e) => {
-    e.preventDefault();
-    // Open in a new tab
-    window.open('/player-register', '_blank');
-    // Redirect the current page
+  const openPlayerRegistration = () => {
+    window.open(`${window.location.origin}/player-register`, '_blank');
     window.location.href = '/player-register';
   };
 
+  const onDragEnd = (result) => {
+    if (!result.destination) {
+      return;
+    }
+
+    const items = Array.from(courts);
+    const [reorderedItem] = items.splice(result.source.index, 1);
+    items.splice(result.destination.index, 0, reorderedItem);
+
+    setCourts(items);
+  };
+
   return (
-    <div className="min-h-screen bg-gray-100">
-      <header className="bg-primary text-white p-4">
+    <div className="min-h-screen bg-gray-100 relative">
+      <header className="bg-primary text-white p-4 flex justify-between items-center">
         <h1 className="text-3xl font-bold">Badminton Court Management</h1>
+        <button 
+          onClick={() => setShowColorPicker(!showColorPicker)}
+          className="p-2 rounded-full hover:bg-green-600 transition duration-300"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+          </svg>
+        </button>
       </header>
       <main className="container mx-auto p-4">
         <div className="mb-8">
           <h2 className="text-2xl font-semibold mb-4">Courts</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {courts.map(court => (
-              <div key={court.id} className="bg-white shadow-md rounded-lg p-4">
-                <h3 className="text-xl font-semibold mb-2">{court.name}</h3>
-                <p className="mb-2">Status: <span className={`font-semibold ${court.is_locked ? 'text-red-500' : 'text-green-500'}`}>
-                  {court.is_locked ? 'Locked' : 'Available'}
-                </span></p>
-                <button
-                  onClick={() => openLockModal(court)}
-                  className="bg-primary text-white px-4 py-2 rounded hover:bg-green-600 transition duration-300"
-                >
-                  Lock Court
-                </button>
-              </div>
-            ))}
-          </div>
+          <DragDropContext onDragEnd={onDragEnd}>
+            <Droppable droppableId="courts">
+              {(provided) => (
+                <div {...provided.droppableProps} ref={provided.innerRef} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {courts.map((court, index) => (
+                    <Draggable key={court.id} draggableId={court.id.toString()} index={index}>
+                      {(provided) => (
+                        <div
+                          ref={provided.innerRef}
+                          {...provided.draggableProps}
+                          {...provided.dragHandleProps}
+                          className="bg-white shadow-md rounded-lg p-4"
+                        >
+                          <h3 className="text-xl font-semibold mb-2">{court.name}</h3>
+                          <p className="mb-2">Status: <span className={`font-semibold ${court.is_locked ? 'text-red-500' : 'text-green-500'}`}>
+                            {court.is_locked ? 'Locked' : 'Available'}
+                          </span></p>
+                          <button
+                            onClick={() => openLockModal(court)}
+                            className="bg-primary text-white px-4 py-2 rounded hover:bg-green-600 transition duration-300"
+                          >
+                            Lock Court
+                          </button>
+                        </div>
+                      )}
+                    </Draggable>
+                  ))}
+                  {provided.placeholder}
+                </div>
+              )}
+            </Droppable>
+          </DragDropContext>
         </div>
         <div className="flex space-x-4 mb-8">
           <button
@@ -168,7 +204,11 @@ function HomePage() {
           </div>
         </div>
       )}
-      <ThemeColorPicker />
+      {showColorPicker && (
+        <div className="absolute top-16 right-4 z-10">
+          <ThemeColorPicker />
+        </div>
+      )}
     </div>
   );
 }
