@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import config from '../config';
 
@@ -8,6 +8,11 @@ function PlayerRegister() {
   const [registrationResult, setRegistrationResult] = useState(null);
   const [showResult, setShowResult] = useState(false);
 
+  const clearResult = useCallback(() => {
+    setRegistrationResult(null);
+    setShowResult(false);
+  }, []);
+
   useEffect(() => {
     let timer;
     if (showResult) {
@@ -15,8 +20,12 @@ function PlayerRegister() {
         clearResult();
       }, 5000);
     }
-    return () => clearTimeout(timer);
-  }, [showResult]);
+    return () => {
+      if (timer) {
+        clearTimeout(timer);
+      }
+    };
+  }, [showResult, clearResult]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -30,11 +39,6 @@ function PlayerRegister() {
       console.error('Player registration error', error);
       alert('Player registration failed. Please try again.');
     }
-  };
-
-  const clearResult = () => {
-    setRegistrationResult(null);
-    setShowResult(false);
   };
 
   return (
