@@ -222,8 +222,8 @@ const zodiacAnimals = ['Rat', 'Ox', 'Tiger', 'Rabbit', 'Dragon', 'Snake', 'Horse
 // Register a player
 app.post('/api/register-player', async (req, res) => {
   try {
-    const { firstName, lastName } = req.body;
-    
+    const { firstName, lastName, useDropInPackage } = req.body;
+
     // Generate username
     let username = firstName.toLowerCase();
     let suffix = 1;
@@ -232,16 +232,16 @@ app.post('/api/register-player', async (req, res) => {
       if (existingUser.rows.length === 0) break;
       username = `${firstName.toLowerCase()}${++suffix}`;
     }
-    
+
     // Generate temporary password
     const tempPassword = zodiacAnimals[Math.floor(Math.random() * zodiacAnimals.length)];
-    
+
     // Insert new player
     const result = await pool.query(
-      'INSERT INTO users (username, password, first_name, last_name, user_type, temp_password) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, username, temp_password',
-      [username, 'temp', firstName, lastName, 'player', tempPassword]
+      'INSERT INTO users (username, password, first_name, last_name, user_type, temp_password, use_drop_in_package) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id, username, temp_password',
+      [username, 'temp', firstName, lastName, 'player', tempPassword, useDropInPackage]
     );
-    
+
     res.status(201).json({ 
       message: 'Player registered successfully',
       username: result.rows[0].username,
@@ -256,7 +256,7 @@ app.post('/api/register-player', async (req, res) => {
 // Get all players
 app.get('/api/players', authenticateToken, async (req, res) => {
   try {
-    const result = await pool.query('SELECT id, username, first_name, last_name, temp_password FROM users WHERE user_type = $1', ['player']);
+    const result = await pool.query('SELECT id, username, first_name, last_name, temp_password, use_drop_in_package FROM users WHERE user_type = $1', ['player']);
     res.json(result.rows);
   } catch (error) {
     console.error('Error fetching players:', error);
@@ -264,7 +264,7 @@ app.get('/api/players', authenticateToken, async (req, res) => {
   }
 });
 
-// ... (previous code remains the same)
+
 
 // Clear all players
 app.delete('/api/players', authenticateToken, async (req, res) => {

@@ -1,21 +1,27 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import config from '../config';
 
 function PlayerRegister() {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
+  const [useDropInPackage, setUseDropInPackage] = useState(false);
   const [registrationResult, setRegistrationResult] = useState(null);
   const [showResult, setShowResult] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const response = await axios.post(`${config.apiBaseUrl}/register-player`, { firstName, lastName });
+      const response = await axios.post(`${config.apiBaseUrl}/register-player`, { 
+        firstName, 
+        lastName, 
+        useDropInPackage 
+      });
       setRegistrationResult(response.data);
       setShowResult(true);
       setFirstName('');
       setLastName('');
+      setUseDropInPackage(false);
     } catch (error) {
       console.error('Player registration error', error);
       alert('Player registration failed. Please try again.');
@@ -49,6 +55,16 @@ function PlayerRegister() {
               required
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
             />
+            <div className="flex items-center">
+              <input
+                type="checkbox"
+                id="dropInPackage"
+                checked={useDropInPackage}
+                onChange={(e) => setUseDropInPackage(e.target.checked)}
+                className="mr-2"
+              />
+              <label htmlFor="dropInPackage">Use Drop-in Package</label>
+            </div>
             <button
               type="submit"
               className="w-full bg-primary text-white py-2 rounded-md hover:bg-green-600 transition duration-300"

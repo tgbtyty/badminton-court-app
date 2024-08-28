@@ -5,6 +5,11 @@ import config from '../config';
 
 function PlayersListPage() {
   const [players, setPlayers] = useState([]);
+  const [searchTerm, setSearchTerm] = useState('');
+
+  useEffect(() => {
+    fetchPlayers();
+  }, []);
 
   const fetchPlayers = async () => {
     try {
@@ -16,12 +21,6 @@ function PlayersListPage() {
       console.error('Error fetching players:', error);
     }
   };
-
-  useEffect(() => {
-    fetchPlayers();
-    const interval = setInterval(fetchPlayers, 30000); // Refresh every 30 seconds
-    return () => clearInterval(interval);
-  }, []);
 
   const clearAllPlayers = async () => {
     if (window.confirm('Are you sure you want to clear all players? This action cannot be undone.')) {
@@ -49,6 +48,12 @@ function PlayersListPage() {
     }
   };
 
+  const filteredPlayers = players.filter(player => 
+    player.first_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    player.last_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    player.username.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
   return (
     <div className="min-h-screen bg-gray-100">
       <header className="bg-primary text-white p-4">
@@ -64,7 +69,16 @@ function PlayersListPage() {
         >
           CLEAR ALL PLAYERS
         </button>
-        <div className="bg-white shadow-md rounded-lg overflow-hidden mt-6">
+        <div className="mb-4">
+          <input
+            type="text"
+            placeholder="Search players..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+          />
+        </div>
+        <div className="bg-white shadow-md rounded-lg overflow-hidden">
           <table className="min-w-full">
             <thead className="bg-gray-200">
               <tr>
@@ -72,16 +86,18 @@ function PlayersListPage() {
                 <th className="py-3 px-4 text-left font-semibold">Last Name</th>
                 <th className="py-3 px-4 text-left font-semibold">Username</th>
                 <th className="py-3 px-4 text-left font-semibold">Temporary Password</th>
+                <th className="py-3 px-4 text-left font-semibold">Drop-in Package</th>
                 <th className="py-3 px-4 text-left font-semibold">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {players.map(player => (
+              {filteredPlayers.map(player => (
                 <tr key={player.id} className="border-t">
                   <td className="py-3 px-4">{player.first_name}</td>
                   <td className="py-3 px-4">{player.last_name}</td>
                   <td className="py-3 px-4">{player.username}</td>
                   <td className="py-3 px-4">{player.temp_password}</td>
+                  <td className="py-3 px-4">{player.use_drop_in_package ? 'Yes' : 'No'}</td>
                   <td className="py-3 px-4">
                     <button
                       onClick={() => removePlayer(player.id)}
