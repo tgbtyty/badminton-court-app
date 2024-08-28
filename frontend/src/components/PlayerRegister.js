@@ -30,7 +30,6 @@ function PlayerRegister() {
       });
       setRegistrationResult(response.data);
       setShowResult(true);
-      setShowWarning(false);
     } catch (error) {
       console.error('Player registration error', error);
       alert('Player registration failed. Please try again.');
@@ -40,17 +39,17 @@ function PlayerRegister() {
   const clearResult = () => {
     setRegistrationResult(null);
     setShowResult(false);
+    setShowWarning(false);
     setFirstName('');
     setLastName('');
     setUseDropInPackage(false);
     setPackageUses(1);
-    setShowWarning(false);
   };
 
   const confirmNonPackageRegistration = async () => {
     await registerPlayer();
+    setShowWarning(false);
   };
-
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col items-center justify-center">
       <div className="bg-white p-8 rounded-lg shadow-md w-full max-w-md">

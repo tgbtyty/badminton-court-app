@@ -134,7 +134,7 @@ function PlayersListPage() {
                   <td className="py-3 px-4">{player.last_name}</td>
                   <td className="py-3 px-4">{player.username}</td>
                   <td className="py-3 px-4">{player.temp_password}</td>
-                  <td className="py-3 px-4">{player.use_drop_in_package ? 'Yes' : 'No'}</td>
+                  <td className="py-3 px-4">{player.use_drop_in_package || player.package_uses > 0 ? 'Yes' : 'No'}</td>
                   <td className="py-3 px-4">{player.package_uses}</td>
                   <td className="py-3 px-4">
                     <button
