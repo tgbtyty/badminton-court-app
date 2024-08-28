@@ -253,7 +253,7 @@ app.post('/api/register-player', async (req, res) => {
   }
 });
 
-// Update the existing get all players route to include is_marked and is_flagged
+// Get all players
 app.get('/api/players', authenticateToken, async (req, res) => {
   try {
     const result = await pool.query('SELECT id, username, first_name, last_name, temp_password, use_drop_in_package, package_uses, created_at, is_marked, is_flagged FROM users WHERE user_type = $1', ['player']);
@@ -327,6 +327,42 @@ app.put('/api/players/:id/flag', authenticateToken, async (req, res) => {
   } catch (error) {
     console.error('Error flagging player:', error);
     res.status(500).json({ message: 'Error flagging player' });
+  }
+});
+
+// Toggle player mark status
+app.post('/api/players/:id/toggle-mark', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await pool.query(
+      'UPDATE users SET is_marked = NOT is_marked WHERE id = $1 RETURNING is_marked',
+      [id]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: 'Player not found' });
+    }
+    res.json({ is_marked: result.rows[0].is_marked });
+  } catch (error) {
+    console.error('Error toggling player mark:', error);
+    res.status(500).json({ message: 'Error toggling player mark' });
+  }
+});
+
+// Toggle player flag status
+app.post('/api/players/:id/toggle-flag', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await pool.query(
+      'UPDATE users SET is_flagged = NOT is_flagged WHERE id = $1 RETURNING is_flagged',
+      [id]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: 'Player not found' });
+    }
+    res.json({ is_flagged: result.rows[0].is_flagged });
+  } catch (error) {
+    console.error('Error toggling player flag:', error);
+    res.status(500).json({ message: 'Error toggling player flag' });
   }
 });
 

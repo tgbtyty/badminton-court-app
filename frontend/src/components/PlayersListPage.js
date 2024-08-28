@@ -8,8 +8,8 @@ function PlayersListPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortColumn, setSortColumn] = useState('');
   const [sortDirection, setSortDirection] = useState('asc');
-  const [markedRows, setMarkedRows] = useState({});
-  const [flaggedRows, setFlaggedRows] = useState({});
+  const [markedPlayers, setMarkedPlayers] = useState({});
+  const [flaggedPlayers, setFlaggedPlayers] = useState({});
 
   useEffect(() => {
     fetchPlayers();
@@ -23,8 +23,8 @@ function PlayersListPage() {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
       });
       setPlayers(response.data);
-      setMarkedRows(response.data.reduce((acc, player) => ({ ...acc, [player.id]: player.is_marked }), {}));
-      setFlaggedRows(response.data.reduce((acc, player) => ({ ...acc, [player.id]: player.is_flagged }), {}));
+      setMarkedPlayers(response.data.reduce((acc, player) => ({...acc, [player.id]: player.is_marked}), {}));
+      setFlaggedPlayers(response.data.reduce((acc, player) => ({...acc, [player.id]: player.is_flagged}), {}));
     } catch (error) {
       console.error('Error fetching players:', error);
     }
@@ -37,8 +37,8 @@ function PlayersListPage() {
           headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
         });
         setPlayers([]);
-        setMarkedRows({});
-        setFlaggedRows({});
+        setMarkedPlayers({});
+        setFlaggedPlayers({});
       } catch (error) {
         console.error('Error clearing all players:', error);
       }
@@ -52,12 +52,12 @@ function PlayersListPage() {
           headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
         });
         setPlayers(players.filter(player => player.id !== id));
-        const updatedMarkedRows = { ...markedRows };
-        delete updatedMarkedRows[id];
-        setMarkedRows(updatedMarkedRows);
-        const updatedFlaggedRows = { ...flaggedRows };
-        delete updatedFlaggedRows[id];
-        setFlaggedRows(updatedFlaggedRows);
+        const updatedMarkedPlayers = { ...markedPlayers };
+        delete updatedMarkedPlayers[id];
+        setMarkedPlayers(updatedMarkedPlayers);
+        const updatedFlaggedPlayers = { ...flaggedPlayers };
+        delete updatedFlaggedPlayers[id];
+        setFlaggedPlayers(updatedFlaggedPlayers);
       } catch (error) {
         console.error('Error removing player:', error);
       }
@@ -73,33 +73,35 @@ function PlayersListPage() {
     }
   };
 
-  const toggleMarkRow = async (id) => {
+  const toggleMarkPlayer = async (id) => {
     try {
-      await axios.put(`${config.apiBaseUrl}/players/${id}/mark`, {
-        is_marked: !markedRows[id]
-      }, {
+      const response = await axios.post(`${config.apiBaseUrl}/players/${id}/toggle-mark`, {}, {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
       });
-      setMarkedRows({ ...markedRows, [id]: !markedRows[id] });
+      setMarkedPlayers(prev => ({...prev, [id]: response.data.is_marked}));
     } catch (error) {
-      console.error('Error marking player:', error);
+      console.error('Error toggling player mark:', error);
     }
   };
 
-  const toggleFlagRow = async (id) => {
+  const toggleFlagPlayer = async (id) => {
     try {
-      await axios.put(`${config.apiBaseUrl}/players/${id}/flag`, {
-        is_flagged: !flaggedRows[id]
-      }, {
+      const response = await axios.post(`${config.apiBaseUrl}/players/${id}/toggle-flag`, {}, {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
       });
-      setFlaggedRows({ ...flaggedRows, [id]: !flaggedRows[id] });
+      setFlaggedPlayers(prev => ({...prev, [id]: response.data.is_flagged}));
     } catch (error) {
-      console.error('Error flagging player:', error);
+      console.error('Error toggling player flag:', error);
     }
   };
 
   const sortedPlayers = [...players].sort((a, b) => {
+    if (sortColumn === 'is_marked') {
+      return (markedPlayers[b.id] ? 1 : 0) - (markedPlayers[a.id] ? 1 : 0);
+    }
+    if (sortColumn === 'is_flagged') {
+      return (flaggedPlayers[b.id] ? 1 : 0) - (flaggedPlayers[a.id] ? 1 : 0);
+    }
     if (sortColumn) {
       if (a[sortColumn] < b[sortColumn]) return sortDirection === 'asc' ? -1 : 1;
       if (a[sortColumn] > b[sortColumn]) return sortDirection === 'asc' ? 1 : -1;
@@ -129,7 +131,7 @@ function PlayersListPage() {
 
   const formatTime = (dateString) => {
     const date = new Date(dateString);
-    return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+    return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: 'numeric', hour12: true });
   };
 
   return (
@@ -161,12 +163,12 @@ function PlayersListPage() {
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
           />
         </div>
-        <div className="bg-white shadow-md rounded-lg overflow-hidden overflow-x-auto">
+        <div className="bg-white shadow-md rounded-lg overflow-hidden">
           <table className="min-w-full">
             <thead className="bg-gray-200">
               <tr>
-                <th className="py-3 px-4 text-left">Mark</th>
-                <th className="py-3 px-4 text-left">Flag</th>
+                <th className="py-3 px-4 text-left"><SortButton column="is_marked" label="Mark" /></th>
+                <th className="py-3 px-4 text-left"><SortButton column="is_flagged" label="Flag" /></th>
                 <th className="py-3 px-4 text-left"><SortButton column="first_name" label="First Name" /></th>
                 <th className="py-3 px-4 text-left"><SortButton column="last_name" label="Last Name" /></th>
                 <th className="py-3 px-4 text-left"><SortButton column="username" label="Username" /></th>
@@ -179,20 +181,22 @@ function PlayersListPage() {
             </thead>
             <tbody>
               {filteredPlayers.map(player => (
-                <tr key={player.id} className={`border-t ${markedRows[player.id] ? 'bg-yellow-100' : ''} ${flaggedRows[player.id] ? 'bg-red-100' : ''}`}>
+                <tr key={player.id} className="border-t">
                   <td className="py-3 px-4">
-                    <input 
-                      type="checkbox" 
-                      checked={markedRows[player.id] || false} 
-                      onChange={() => toggleMarkRow(player.id)}
-                    />
+                    <button
+                      onClick={() => toggleMarkPlayer(player.id)}
+                      className={`text-2xl ${markedPlayers[player.id] ? 'text-green-500' : 'text-gray-300'}`}
+                    >
+                      ✓
+                    </button>
                   </td>
                   <td className="py-3 px-4">
-                    <input 
-                      type="checkbox" 
-                      checked={flaggedRows[player.id] || false} 
-                      onChange={() => toggleFlagRow(player.id)}
-                    />
+                    <button
+                      onClick={() => toggleFlagPlayer(player.id)}
+                      className={`text-2xl ${flaggedPlayers[player.id] ? 'text-red-500' : 'text-gray-300'}`}
+                    >
+                      🚩
+                    </button>
                   </td>
                   <td className="py-3 px-4">{player.first_name}</td>
                   <td className="py-3 px-4">{player.last_name}</td>
