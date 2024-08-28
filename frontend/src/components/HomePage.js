@@ -15,7 +15,7 @@ function HomePage() {
 
   const fetchCourts = async () => {
     try {
-      const response = await axios.get('http://localhost:5000/api/courts', {
+      const response = await axios.get('${config.apiBaseUrl}/courts', {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
       });
       setCourts(response.data);
@@ -26,7 +26,7 @@ function HomePage() {
 
   const addCourt = async () => {
     try {
-      await axios.post('http://localhost:5000/api/courts', { name: `Court ${courts.length + 1}` }, {
+      await axios.post('${config.apiBaseUrl}/courts', { name: `Court ${courts.length + 1}` }, {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
       });
       fetchCourts();
@@ -38,7 +38,7 @@ function HomePage() {
   const removeCourt = async () => {
     if (courts.length > 0) {
       try {
-        await axios.delete(`http://localhost:5000/api/courts/${courts[courts.length - 1].id}`, {
+        await axios.delete(`${config.apiBaseUrl}/courts/${courts[courts.length - 1].id}`, {
           headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
         });
         fetchCourts();
@@ -57,7 +57,7 @@ function HomePage() {
     try {
       const [hours, minutes] = lockDuration.split(':').map(Number);
       const durationInMinutes = hours * 60 + minutes;
-      await axios.post(`http://localhost:5000/api/courts/${selectedCourt.id}/lock`, {
+      await axios.post(`${config.apiBaseUrl}/api/courts/${selectedCourt.id}/lock`, {
         startTime: lockStartTime,
         duration: durationInMinutes
       }, {
