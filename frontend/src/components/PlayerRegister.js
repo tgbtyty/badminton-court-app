@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import axios from 'axios';
 import config from '../config';
 
@@ -55,15 +55,18 @@ function PlayerRegister() {
               required
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
             />
-            <div className="flex items-center">
-              <input
-                type="checkbox"
-                id="dropInPackage"
-                checked={useDropInPackage}
-                onChange={(e) => setUseDropInPackage(e.target.checked)}
-                className="mr-2"
-              />
-              <label htmlFor="dropInPackage">Use Drop-in Package</label>
+            <div 
+              className="flex items-center p-2 rounded-md hover:bg-gray-100 cursor-pointer"
+              onClick={() => setUseDropInPackage(!useDropInPackage)}
+            >
+              <div className={`w-6 h-6 mr-2 border-2 rounded flex items-center justify-center ${useDropInPackage ? 'bg-primary border-primary' : 'border-gray-400'}`}>
+                {useDropInPackage && (
+                  <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
+                  </svg>
+                )}
+              </div>
+              <span className="text-lg">Use Drop-in Package</span>
             </div>
             <button
               type="submit"

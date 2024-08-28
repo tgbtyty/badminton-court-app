@@ -6,6 +6,8 @@ import config from '../config';
 function PlayersListPage() {
   const [players, setPlayers] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [sortColumn, setSortColumn] = useState('');
+  const [sortDirection, setSortDirection] = useState('asc');
 
   useEffect(() => {
     fetchPlayers();
@@ -48,10 +50,41 @@ function PlayersListPage() {
     }
   };
 
-  const filteredPlayers = players.filter(player => 
+  const handleSort = (column) => {
+    if (column === sortColumn) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortColumn(column);
+      setSortDirection('asc');
+    }
+  };
+
+  const sortedPlayers = [...players].sort((a, b) => {
+    if (sortColumn) {
+      if (a[sortColumn] < b[sortColumn]) return sortDirection === 'asc' ? -1 : 1;
+      if (a[sortColumn] > b[sortColumn]) return sortDirection === 'asc' ? 1 : -1;
+    }
+    return 0;
+  });
+
+  const filteredPlayers = sortedPlayers.filter(player => 
     player.first_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     player.last_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     player.username.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const SortButton = ({ column, label }) => (
+    <button
+      onClick={() => handleSort(column)}
+      className="font-semibold flex items-center"
+    >
+      {label}
+      {sortColumn === column && (
+        <span className="ml-1">
+          {sortDirection === 'asc' ? '▲' : '▼'}
+        </span>
+      )}
+    </button>
   );
 
   return (
@@ -82,12 +115,12 @@ function PlayersListPage() {
           <table className="min-w-full">
             <thead className="bg-gray-200">
               <tr>
-                <th className="py-3 px-4 text-left font-semibold">First Name</th>
-                <th className="py-3 px-4 text-left font-semibold">Last Name</th>
-                <th className="py-3 px-4 text-left font-semibold">Username</th>
-                <th className="py-3 px-4 text-left font-semibold">Temporary Password</th>
-                <th className="py-3 px-4 text-left font-semibold">Drop-in Package</th>
-                <th className="py-3 px-4 text-left font-semibold">Actions</th>
+                <th className="py-3 px-4 text-left"><SortButton column="first_name" label="First Name" /></th>
+                <th className="py-3 px-4 text-left"><SortButton column="last_name" label="Last Name" /></th>
+                <th className="py-3 px-4 text-left"><SortButton column="username" label="Username" /></th>
+                <th className="py-3 px-4 text-left"><SortButton column="temp_password" label="Temporary Password" /></th>
+                <th className="py-3 px-4 text-left"><SortButton column="use_drop_in_package" label="Drop-in Package" /></th>
+                <th className="py-3 px-4 text-left">Actions</th>
               </tr>
             </thead>
             <tbody>
