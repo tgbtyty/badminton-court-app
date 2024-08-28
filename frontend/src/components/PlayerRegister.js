@@ -17,6 +17,10 @@ function PlayerRegister() {
       setShowWarning(true);
       return;
     }
+    await registerPlayer();
+  };
+
+  const registerPlayer = async () => {
     try {
       const response = await axios.post(`${config.apiBaseUrl}/register-player`, { 
         firstName, 
@@ -26,6 +30,7 @@ function PlayerRegister() {
       });
       setRegistrationResult(response.data);
       setShowResult(true);
+      setShowWarning(false);
     } catch (error) {
       console.error('Player registration error', error);
       alert('Player registration failed. Please try again.');
@@ -39,11 +44,11 @@ function PlayerRegister() {
     setLastName('');
     setUseDropInPackage(false);
     setPackageUses(1);
+    setShowWarning(false);
   };
 
-  const confirmNonPackageRegistration = () => {
-    setShowWarning(false);
-    setShowResult(true);
+  const confirmNonPackageRegistration = async () => {
+    await registerPlayer();
   };
 
   return (
