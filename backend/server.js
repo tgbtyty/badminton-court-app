@@ -203,6 +203,8 @@ app.post('/api/courts/:id/queue', authenticateToken, async (req, res) => {
       await movePlayersToActiveCourt(id);
     }
 
+    await manageCourtTimer(id);
+
     res.json({ message: 'Players queued successfully' });
   } catch (error) {
     console.error('Error queueing players:', error);
@@ -212,21 +214,26 @@ app.post('/api/courts/:id/queue', authenticateToken, async (req, res) => {
 
 // Helper function to move players from waiting to active
 async function movePlayersToActiveCourt(courtId) {
-  const waitingPlayers = await pool.query(
-    'SELECT * FROM waiting_players WHERE court_id = $1 ORDER BY joined_at LIMIT 4',
-    [courtId]
-  );
+  const activePlayers = await pool.query('SELECT * FROM active_players WHERE court_id = $1', [courtId]);
+  const availableSlots = 4 - activePlayers.rows.length;
 
-  for (const player of waitingPlayers.rows) {
-    await pool.query(
-      'INSERT INTO active_players (court_id, user_id) VALUES ($1, $2)',
-      [courtId, player.user_id]
+  if (availableSlots > 0) {
+    const waitingPlayers = await pool.query(
+      'SELECT * FROM waiting_players WHERE court_id = $1 ORDER BY joined_at LIMIT $2',
+      [courtId, availableSlots]
     );
-    await pool.query('DELETE FROM waiting_players WHERE id = $1', [player.id]);
-  }
 
-  // Start the timer for the court
-  await pool.query('UPDATE courts SET timer_start = NOW() WHERE id = $1', [courtId]);
+    for (const player of waitingPlayers.rows) {
+      await pool.query(
+        'INSERT INTO active_players (court_id, user_id) VALUES ($1, $2)',
+        [courtId, player.user_id]
+      );
+      await pool.query('DELETE FROM waiting_players WHERE id = $1', [player.id]);
+    }
+
+    // Manage the court timer after moving players
+    await manageCourtTimer(courtId);
+  }
 }
 
 // Get court details including current players and queue
@@ -290,6 +297,17 @@ app.get('/api/courts', authenticateToken, async (req, res) => {
   }
 });
 
+// Helper function to start or reset the timer for a court
+async function manageCourtTimer(courtId) {
+  const activePlayers = await pool.query('SELECT * FROM active_players WHERE court_id = $1', [courtId]);
+  if (activePlayers.rows.length > 0) {
+    // Start or reset the timer if there are active players
+    await pool.query('UPDATE courts SET timer_start = NOW() WHERE id = $1', [courtId]);
+  } else {
+    // Clear the timer if there are no active players
+    await pool.query('UPDATE courts SET timer_start = NULL WHERE id = $1', [courtId]);
+  }
+}
 
 
 // Function to check and rotate players when the timer ends
@@ -302,6 +320,7 @@ async function checkAndRotatePlayers() {
     }
   }
 }
+
 async function rotatePlayers(courtId) {
   // Remove current active players
   await pool.query('DELETE FROM active_players WHERE court_id = $1', [courtId]);
@@ -309,8 +328,8 @@ async function rotatePlayers(courtId) {
   // Move waiting players to active
   await movePlayersToActiveCourt(courtId);
 
-  // Reset the timer
-  await pool.query('UPDATE courts SET timer_start = NOW() WHERE id = $1', [courtId]);
+  // Manage the court timer after rotation
+  await manageCourtTimer(courtId);
 }
 
 // Run the check every minute
@@ -445,6 +464,43 @@ app.get('/api/players', authenticateToken, async (req, res) => {
   } catch (error) {
     console.error('Error fetching players:', error);
     res.status(500).json({ message: 'Error fetching players' });
+  }
+});
+
+// Remove players from a court or queue
+app.post('/api/courts/:id/remove', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { playerCredentials } = req.body;
+
+    for (const cred of playerCredentials) {
+      const user = await pool.query('SELECT * FROM users WHERE username = $1', [cred.username]);
+      if (user.rows.length === 0) {
+        return res.status(400).json({ message: `Player not found: ${cred.username}` });
+      }
+      
+      const validPassword = await bcrypt.compare(cred.password, user.rows[0].password);
+      if (!validPassword) {
+        return res.status(400).json({ message: `Invalid password for player: ${cred.username}` });
+      }
+
+      // Remove from active players
+      await pool.query('DELETE FROM active_players WHERE court_id = $1 AND user_id = $2', [id, user.rows[0].id]);
+
+      // Remove from waiting players
+      await pool.query('DELETE FROM waiting_players WHERE court_id = $1 AND user_id = $2', [id, user.rows[0].id]);
+    }
+
+    // Manage the court timer after removing players
+    await manageCourtTimer(id);
+
+    // Move players from waiting to active if necessary
+    await movePlayersToActiveCourt(id);
+
+    res.json({ message: 'Players removed successfully' });
+  } catch (error) {
+    console.error('Error removing players:', error);
+    res.status(500).json({ message: 'Error removing players' });
   }
 });
 
