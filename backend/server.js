@@ -169,7 +169,7 @@ app.post('/api/courts/:id/queue', authenticateToken, async (req, res) => {
         return res.status(400).json({ message: `Player not found: ${cred.username}` });
       }
       
-      const validPassword = await bcrypt.compare(cred.password, user.rows[0].password);
+      const validPassword = await bcrypt.compare(cred.password, user.rows[0].temp_password);
       if (!validPassword) {
         return res.status(400).json({ message: `Invalid password for player: ${cred.username}` });
       }
@@ -205,6 +205,25 @@ app.post('/api/courts/:id/queue', authenticateToken, async (req, res) => {
     res.status(500).json({ message: 'Error queueing players' });
   }
 });
+
+// Helper function to move players from waiting to active
+async function movePlayersToActiveCourt(courtId) {
+  const waitingPlayers = await pool.query(
+    'SELECT * FROM waiting_players WHERE court_id = $1 ORDER BY joined_at LIMIT 4',
+    [courtId]
+  );
+
+  for (const player of waitingPlayers.rows) {
+    await pool.query(
+      'INSERT INTO active_players (court_id, user_id) VALUES ($1, $2)',
+      [courtId, player.user_id]
+    );
+    await pool.query('DELETE FROM waiting_players WHERE id = $1', [player.id]);
+  }
+
+  // Start the timer for the court
+  await pool.query('UPDATE courts SET timer_start = NOW() WHERE id = $1', [courtId]);
+}
 
 // Get court details including current players and queue
 app.get('/api/courts/:id', authenticateToken, async (req, res) => {
@@ -243,24 +262,6 @@ app.get('/api/courts/:id', authenticateToken, async (req, res) => {
 });
 
 
-// Helper function to move players from waiting to active
-async function movePlayersToActiveCourt(courtId) {
-  const waitingPlayers = await pool.query(
-    'SELECT * FROM waiting_players WHERE court_id = $1 ORDER BY joined_at LIMIT 4',
-    [courtId]
-  );
-
-  for (const player of waitingPlayers.rows) {
-    await pool.query(
-      'INSERT INTO active_players (court_id, user_id) VALUES ($1, $2)',
-      [courtId, player.user_id]
-    );
-    await pool.query('DELETE FROM waiting_players WHERE id = $1', [player.id]);
-  }
-
-  // Start the timer for the court
-  await pool.query('UPDATE courts SET timer_start = NOW() WHERE id = $1', [courtId]);
-}
 
 // Function to check and rotate players when the timer ends
 async function checkAndRotatePlayers() {
@@ -385,10 +386,15 @@ app.post('/api/register-player', async (req, res) => {
     // Generate temporary password
     const tempPassword = zodiacAnimals[Math.floor(Math.random() * zodiacAnimals.length)];
 
+    // Hash the temporary password
+    const hashedPassword = await bcrypt.hash(tempPassword, 10);
+    console.log('Original temp password:', tempPassword);
+    console.log('Hashed password:', hashedPassword);
+
     // Insert new player
     const result = await pool.query(
       'INSERT INTO users (username, password, first_name, last_name, user_type, temp_password, package_uses) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id, username, temp_password',
-      [username, 'temp', firstName, lastName, 'player', tempPassword, packageUses]
+      [username, hashedPassword, firstName, lastName, 'player', tempPassword, packageUses]
     );
 
     res.status(201).json({ 
@@ -398,7 +404,7 @@ app.post('/api/register-player', async (req, res) => {
     });
   } catch (error) {
     console.error('Error registering player:', error);
-    res.status(500).json({ message: 'Error registering player' });
+    res.status(500).json({ message: 'Error registering player', details: error.message });
   }
 });
 

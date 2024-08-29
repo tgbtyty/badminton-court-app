@@ -53,7 +53,7 @@ function CourtsPage() {
 
   const handleQueuePlayers = async () => {
     try {
-      const response = await axios.post(`${config.apiBaseUrl}/courts/${selectedCourt.id}/queue`, {
+      await axios.post(`${config.apiBaseUrl}/courts/${selectedCourt.id}/queue`, {
         playerCredentials: playerCredentials
       }, {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
