@@ -154,54 +154,49 @@ app.post('/api/login', async (req, res) => {
 app.post('/api/courts/:id/queue', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
-    const { players } = req.body;
+    const { playerCredentials } = req.body;
 
     const court = await pool.query('SELECT * FROM courts WHERE id = $1', [id]);
     if (court.rows.length === 0) {
       return res.status(404).json({ message: 'Court not found' });
     }
 
-    let currentPlayers = court.rows[0].current_players || [];
-    let queue = court.rows[0].queue || [];
-
-    // Validate and authenticate each player
+    // Verify player credentials and check if they're already queued
     const validatedPlayers = [];
-    for (const player of players) {
-      const result = await pool.query('SELECT * FROM users WHERE username = $1', [player.username]);
-      if (result.rows.length === 0) {
-        return res.status(400).json({ message: `User ${player.username} not found` });
+    for (const cred of playerCredentials) {
+      const user = await pool.query('SELECT * FROM users WHERE username = $1', [cred.username]);
+      if (user.rows.length === 0) {
+        return res.status(400).json({ message: `Player not found: ${cred.username}` });
       }
-      const user = result.rows[0];
-      const validPassword = await bcrypt.compare(player.password, user.password);
+      
+      const validPassword = await bcrypt.compare(cred.password, user.rows[0].password);
       if (!validPassword) {
-        return res.status(400).json({ message: `Invalid password for user ${player.username}` });
+        return res.status(400).json({ message: `Invalid password for player: ${cred.username}` });
       }
-      // Check if player is already on a court or in a queue
-      const isPlayerActive = await pool.query('SELECT * FROM active_players WHERE user_id = $1', [user.id]);
-      const isPlayerWaiting = await pool.query('SELECT * FROM waiting_players WHERE user_id = $1', [user.id]);
-      if (isPlayerActive.rows.length > 0 || isPlayerWaiting.rows.length > 0) {
-        return res.status(400).json({ message: `User ${player.username} is already on a court or in a queue` });
+      
+      const alreadyQueued = await pool.query(
+        'SELECT * FROM waiting_players WHERE user_id = $1',
+        [user.rows[0].id]
+      );
+      if (alreadyQueued.rows.length > 0) {
+        return res.status(400).json({ message: `Player ${cred.username} is already queued` });
       }
-      validatedPlayers.push(user.id);
+      
+      validatedPlayers.push(user.rows[0].id);
     }
 
-    // If the court is empty, start the timer and add players to the court
-    if (currentPlayers.length === 0) {
-      currentPlayers = validatedPlayers.slice(0, 4);
-      queue = validatedPlayers.slice(4);
-      await pool.query('UPDATE courts SET current_players = $1, queue = $2, timer_start = NOW() WHERE id = $3', [currentPlayers, queue, id]);
-      // Add players to active_players table
-      for (const playerId of currentPlayers) {
-        await pool.query('INSERT INTO active_players (court_id, user_id) VALUES ($1, $2)', [id, playerId]);
-      }
-    } else {
-      // If the court is not empty, add players to the queue
-      queue = [...queue, ...validatedPlayers];
-      await pool.query('UPDATE courts SET queue = $1 WHERE id = $2', [queue, id]);
-      // Add players to waiting_players table
-      for (const playerId of validatedPlayers) {
-        await pool.query('INSERT INTO waiting_players (court_id, user_id) VALUES ($1, $2)', [id, playerId]);
-      }
+    // Add players to the waiting queue
+    for (const playerId of validatedPlayers) {
+      await pool.query(
+        'INSERT INTO waiting_players (court_id, user_id) VALUES ($1, $2)',
+        [id, playerId]
+      );
+    }
+
+    // Check if the court is empty and move players if necessary
+    const activePlayers = await pool.query('SELECT * FROM active_players WHERE court_id = $1', [id]);
+    if (activePlayers.rows.length === 0) {
+      await movePlayersToActiveCourt(id);
     }
 
     res.json({ message: 'Players queued successfully' });

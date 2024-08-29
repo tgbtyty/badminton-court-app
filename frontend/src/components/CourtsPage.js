@@ -6,8 +6,9 @@ import config from '../config';
 function CourtsPage() {
   const [courts, setCourts] = useState([]);
   const [selectedCourt, setSelectedCourt] = useState(null);
-  const [queueForm, setQueueForm] = useState([{ username: '', password: '' }]);
-  const [error, setError] = useState('');
+  const [showQueueModal, setShowQueueModal] = useState(false);
+  const [playerCredentials, setPlayerCredentials] = useState([{ username: '', password: '' }]);
+  const [queueError, setQueueError] = useState('');
 
   useEffect(() => {
     fetchCourts();
@@ -23,50 +24,45 @@ function CourtsPage() {
       setCourts(response.data);
     } catch (error) {
       console.error('Error fetching courts:', error);
-      setError('Failed to fetch courts. Please try again.');
     }
   };
 
   const handleCourtSelect = (court) => {
     setSelectedCourt(court);
-    setQueueForm([{ username: '', password: '' }]);
-    setError('');
+    setShowQueueModal(true);
+    setPlayerCredentials([{ username: '', password: '' }]);
+    setQueueError('');
   };
 
-  const handleFormChange = (index, event) => {
-    const values = [...queueForm];
-    values[index][event.target.name] = event.target.value;
-    setQueueForm(values);
+  const handleCredentialChange = (index, field, value) => {
+    const newCredentials = [...playerCredentials];
+    newCredentials[index][field] = value;
+    setPlayerCredentials(newCredentials);
   };
 
-  const handleAddPlayer = () => {
-    if (queueForm.length < 4) {
-      setQueueForm([...queueForm, { username: '', password: '' }]);
+  const addPlayerCredential = () => {
+    if (playerCredentials.length < 4) {
+      setPlayerCredentials([...playerCredentials, { username: '', password: '' }]);
     }
   };
 
-  const handleRemovePlayer = (index) => {
-    const values = [...queueForm];
-    values.splice(index, 1);
-    setQueueForm(values);
+  const removePlayerCredential = (index) => {
+    const newCredentials = playerCredentials.filter((_, i) => i !== index);
+    setPlayerCredentials(newCredentials);
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError('');
-
+  const handleQueuePlayers = async () => {
     try {
       const response = await axios.post(`${config.apiBaseUrl}/courts/${selectedCourt.id}/queue`, {
-        players: queueForm
+        playerCredentials: playerCredentials
       }, {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
       });
-      console.log('Queue response:', response.data);
-      setSelectedCourt(null);
+      setShowQueueModal(false);
       fetchCourts();
     } catch (error) {
       console.error('Error queueing players:', error);
-      setError(error.response?.data?.message || 'Failed to queue players. Please try again.');
+      setQueueError(error.response?.data?.message || 'Error queueing players. Please try again.');
     }
   };
 
@@ -79,76 +75,77 @@ function CourtsPage() {
         <Link to="/home" className="bg-primary text-white px-6 py-2 rounded hover:bg-green-600 transition duration-300 mb-4 inline-block">
           Back to Home
         </Link>
-        {error && <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">{error}</div>}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {courts.map(court => (
             <div 
               key={court.id} 
-              className="bg-white shadow-md rounded-lg p-4 cursor-pointer"
+              className="bg-white p-4 rounded shadow cursor-pointer hover:shadow-lg transition duration-300"
               onClick={() => handleCourtSelect(court)}
             >
               <h3 className="text-xl font-bold mb-2">{court.name}</h3>
-              <p>Current Players: {court.current_players?.length || 0}/4</p>
-              <p>Queue: {court.queue?.length || 0}</p>
-              {court.timer_start && <p>Time Remaining: {court.remaining_time} minutes</p>}
+              <p className="mb-2">Active Players: {court.active_player_count}/4</p>
+              <p>Waiting: {court.waiting_player_count} players</p>
             </div>
           ))}
         </div>
-        {selectedCourt && (
-          <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full" id="my-modal">
-            <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
-              <div className="mt-3 text-center">
-                <h3 className="text-lg leading-6 font-medium text-gray-900">{selectedCourt.name}</h3>
-                <form onSubmit={handleSubmit} className="mt-2 px-7 py-3">
-                  {queueForm.map((player, index) => (
-                    <div key={index} className="mb-4">
-                      <input
-                        type="text"
-                        name="username"
-                        value={player.username}
-                        onChange={(e) => handleFormChange(index, e)}
-                        placeholder="Username"
-                        className="w-full px-3 py-2 border rounded mb-2"
-                        required
-                      />
-                      <input
-                        type="password"
-                        name="password"
-                        value={player.password}
-                        onChange={(e) => handleFormChange(index, e)}
-                        placeholder="Password"
-                        className="w-full px-3 py-2 border rounded"
-                        required
-                      />
-                      {index > 0 && (
-                        <button type="button" onClick={() => handleRemovePlayer(index)} className="mt-2 text-red-500">
-                          Remove Player
-                        </button>
-                      )}
-                    </div>
-                  ))}
-                  {queueForm.length < 4 && (
-                    <button type="button" onClick={handleAddPlayer} className="mt-2 text-blue-500">
-                      Add Player
-                    </button>
-                  )}
-                  <div className="items-center px-4 py-3">
-                    <button
-                      id="ok-btn"
-                      className="px-4 py-2 bg-primary text-white text-base font-medium rounded-md w-full shadow-sm hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-300"
-                    >
-                      Queue
-                    </button>
-                  </div>
-                </form>
-                <button onClick={() => setSelectedCourt(null)} className="mt-3 text-gray-600">
-                  Close
-                </button>
+      </main>
+
+      {showQueueModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full">
+            <h2 className="text-2xl font-bold mb-4">Queue for {selectedCourt.name}</h2>
+            {playerCredentials.map((cred, index) => (
+              <div key={index} className="mb-4">
+                <input
+                  type="text"
+                  placeholder="Username"
+                  value={cred.username}
+                  onChange={(e) => handleCredentialChange(index, 'username', e.target.value)}
+                  className="p-2 border rounded w-full mb-2"
+                />
+                <input
+                  type="password"
+                  placeholder="Password"
+                  value={cred.password}
+                  onChange={(e) => handleCredentialChange(index, 'password', e.target.value)}
+                  className="p-2 border rounded w-full mb-2"
+                />
+                {index > 0 && (
+                  <button
+                    onClick={() => removePlayerCredential(index)}
+                    className="text-red-500 hover:text-red-700"
+                  >
+                    Remove
+                  </button>
+                )}
               </div>
+            ))}
+            {playerCredentials.length < 4 && (
+              <button
+                onClick={addPlayerCredential}
+                className="bg-gray-200 text-gray-800 px-4 py-2 rounded mb-4"
+              >
+                Add Player
+              </button>
+            )}
+            {queueError && <p className="text-red-500 mb-4">{queueError}</p>}
+            <div className="flex justify-end">
+              <button
+                onClick={() => setShowQueueModal(false)}
+                className="bg-gray-300 text-black px-4 py-2 rounded mr-2"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleQueuePlayers}
+                className="bg-primary text-white px-4 py-2 rounded"
+              >
+                Queue
+              </button>
             </div>
           </div>
-        )}
-      </main>
+        </div>
+      )}
     </div>
   );
 }
