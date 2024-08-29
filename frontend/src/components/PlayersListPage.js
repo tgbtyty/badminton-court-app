@@ -8,8 +8,7 @@ function PlayersListPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortColumn, setSortColumn] = useState('');
   const [sortDirection, setSortDirection] = useState('asc');
-  const [markedPlayers, setMarkedPlayers] = useState({});
-  const [flaggedPlayers, setFlaggedPlayers] = useState({});
+  const [expandedPlayers, setExpandedPlayers] = useState({});
 
   useEffect(() => {
     fetchPlayers();
@@ -23,8 +22,6 @@ function PlayersListPage() {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
       });
       setPlayers(response.data);
-      setMarkedPlayers(response.data.reduce((acc, player) => ({...acc, [player.id]: player.is_marked}), {}));
-      setFlaggedPlayers(response.data.reduce((acc, player) => ({...acc, [player.id]: player.is_flagged}), {}));
     } catch (error) {
       console.error('Error fetching players:', error);
     }
@@ -37,8 +34,6 @@ function PlayersListPage() {
           headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
         });
         setPlayers([]);
-        setMarkedPlayers({});
-        setFlaggedPlayers({});
       } catch (error) {
         console.error('Error clearing all players:', error);
       }
@@ -52,12 +47,6 @@ function PlayersListPage() {
           headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
         });
         setPlayers(players.filter(player => player.id !== id));
-        const updatedMarkedPlayers = { ...markedPlayers };
-        delete updatedMarkedPlayers[id];
-        setMarkedPlayers(updatedMarkedPlayers);
-        const updatedFlaggedPlayers = { ...flaggedPlayers };
-        delete updatedFlaggedPlayers[id];
-        setFlaggedPlayers(updatedFlaggedPlayers);
       } catch (error) {
         console.error('Error removing player:', error);
       }
@@ -73,12 +62,18 @@ function PlayersListPage() {
     }
   };
 
+  const togglePlayerExpand = (id) => {
+    setExpandedPlayers(prev => ({ ...prev, [id]: !prev[id] }));
+  };
+
   const toggleMarkPlayer = async (id) => {
     try {
       const response = await axios.post(`${config.apiBaseUrl}/players/${id}/toggle-mark`, {}, {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
       });
-      setMarkedPlayers(prev => ({...prev, [id]: response.data.is_marked}));
+      setPlayers(prevPlayers => prevPlayers.map(player => 
+        player.id === id ? { ...player, is_marked: response.data.is_marked } : player
+      ));
     } catch (error) {
       console.error('Error toggling player mark:', error);
     }
@@ -89,7 +84,9 @@ function PlayersListPage() {
       const response = await axios.post(`${config.apiBaseUrl}/players/${id}/toggle-flag`, {}, {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
       });
-      setFlaggedPlayers(prev => ({...prev, [id]: response.data.is_flagged}));
+      setPlayers(prevPlayers => prevPlayers.map(player => 
+        player.id === id ? { ...player, is_flagged: response.data.is_flagged } : player
+      ));
     } catch (error) {
       console.error('Error toggling player flag:', error);
     }
@@ -97,10 +94,10 @@ function PlayersListPage() {
 
   const sortedPlayers = [...players].sort((a, b) => {
     if (sortColumn === 'is_marked') {
-      return (markedPlayers[b.id] ? 1 : 0) - (markedPlayers[a.id] ? 1 : 0);
+      return (b.is_marked ? 1 : 0) - (a.is_marked ? 1 : 0);
     }
     if (sortColumn === 'is_flagged') {
-      return (flaggedPlayers[b.id] ? 1 : 0) - (flaggedPlayers[a.id] ? 1 : 0);
+      return (b.is_flagged ? 1 : 0) - (a.is_flagged ? 1 : 0);
     }
     if (sortColumn) {
       if (a[sortColumn] < b[sortColumn]) return sortDirection === 'asc' ? -1 : 1;
@@ -114,6 +111,20 @@ function PlayersListPage() {
     player.last_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     player.username.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  const groupedPlayers = filteredPlayers.reduce((acc, player) => {
+    if (player.package_holder_id) {
+      if (!acc[player.package_holder_id]) {
+        acc[player.package_holder_id] = [];
+      }
+      acc[player.package_holder_id].push(player);
+    } else {
+      if (!acc[player.id]) {
+        acc[player.id] = [player];
+      }
+    }
+    return acc;
+  }, {});
 
   const SortButton = ({ column, label }) => (
     <button
@@ -173,57 +184,79 @@ function PlayersListPage() {
                 <th className="py-3 px-4 text-left"><SortButton column="last_name" label="Last Name" /></th>
                 <th className="py-3 px-4 text-left"><SortButton column="username" label="Username" /></th>
                 <th className="py-3 px-4 text-left"><SortButton column="temp_password" label="Temporary Password" /></th>
-                <th className="py-3 px-4 text-left"><SortButton column="use_drop_in_package" label="Using Package" /></th>
                 <th className="py-3 px-4 text-left"><SortButton column="package_uses" label="Package Uses" /></th>
                 <th className="py-3 px-4 text-left"><SortButton column="created_at" label="Registration Time" /></th>
                 <th className="py-3 px-4 text-left">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {filteredPlayers.map(player => (
-                <tr key={player.id} className="border-t">
-                  <td className="py-3 px-4">
-                    <button
-                      onClick={() => toggleMarkPlayer(player.id)}
-                      className="text-2xl focus:outline-none"
-                      style={{
-                        opacity: markedPlayers[player.id] ? 1 : 0.3,
-                        color: markedPlayers[player.id] ? '#22c55e' : 'inherit', // Green color when marked
-                        transition: 'opacity 0.3s, color 0.3s'
-                      }}
-                    >
-                      ✅
-                    </button>
-                  </td>
-                  <td className="py-3 px-4">
-                    <button
-                      onClick={() => toggleFlagPlayer(player.id)}
-                      className="text-2xl focus:outline-none"
-                      style={{
-                        opacity: flaggedPlayers[player.id] ? 1 : 0.3,
-                        color: flaggedPlayers[player.id] ? '#ef4444' : 'inherit', // Red color when flagged
-                        transition: 'opacity 0.3s, color 0.3s'
-                      }}
-                    >
-                      🚩
-                    </button>
-                  </td>
-                  <td className="py-3 px-4">{player.first_name}</td>
-                  <td className="py-3 px-4">{player.last_name}</td>
-                  <td className="py-3 px-4">{player.username}</td>
-                  <td className="py-3 px-4">{player.temp_password}</td>
-                  <td className="py-3 px-4">{player.use_drop_in_package || player.package_uses > 0 ? 'Yes' : 'No'}</td>
-                  <td className="py-3 px-4">{player.package_uses}</td>
-                  <td className="py-3 px-4">{formatTime(player.created_at)}</td>
-                  <td className="py-3 px-4">
-                    <button
-                      onClick={() => removePlayer(player.id)}
-                      className="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600 transition duration-300"
-                    >
-                      Remove
-                    </button>
-                  </td>
-                </tr>
+              {Object.entries(groupedPlayers).map(([packageHolderId, groupPlayers]) => (
+                <React.Fragment key={packageHolderId}>
+                  {groupPlayers.map((player, index) => (
+                    <React.Fragment key={player.id}>
+                      <tr className="border-t">
+                        <td className="py-3 px-4">
+                          <button
+                            onClick={() => toggleMarkPlayer(player.id)}
+                            className="text-2xl focus:outline-none"
+                            style={{
+                              opacity: player.is_marked ? 1 : 0.3,
+                              color: player.is_marked ? '#22c55e' : 'inherit',
+                              transition: 'opacity 0.3s, color 0.3s'
+                            }}
+                          >
+                            ✅
+                          </button>
+                        </td>
+                        <td className="py-3 px-4">
+                          <button
+                            onClick={() => toggleFlagPlayer(player.id)}
+                            className="text-2xl focus:outline-none"
+                            style={{
+                              opacity: player.is_flagged ? 1 : 0.3,
+                              color: player.is_flagged ? '#ef4444' : 'inherit',
+                              transition: 'opacity 0.3s, color 0.3s'
+                            }}
+                          >
+                            🚩
+                          </button>
+                        </td>
+                        <td className="py-3 px-4">{player.first_name}</td>
+                        <td className="py-3 px-4">{player.last_name}</td>
+                        <td className="py-3 px-4">{player.username}</td>
+                        <td className="py-3 px-4">{player.temp_password}</td>
+                        <td className="py-3 px-4">{player.package_uses}</td>
+                        <td className="py-3 px-4">{formatTime(player.created_at)}</td>
+                        <td className="py-3 px-4">
+                          <button
+                            onClick={() => removePlayer(player.id)}
+                            className="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600 transition duration-300 mr-2"
+                          >
+                            Remove
+                          </button>
+                          {index === 0 && groupPlayers.length > 1 && (
+                            <button
+                              onClick={() => togglePlayerExpand(player.id)}
+                              className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600 transition duration-300"
+                            >
+                              {expandedPlayers[player.id] ? 'Hide' : 'Show'} Group
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                      {index === 0 && expandedPlayers[player.id] && groupPlayers.slice(1).map(groupPlayer => (
+                        <tr key={groupPlayer.id} className="bg-gray-50">
+                          <td colSpan="2"></td>
+                          <td className="py-3 px-4">{groupPlayer.first_name}</td>
+                          <td className="py-3 px-4">{groupPlayer.last_name}</td>
+                          <td className="py-3 px-4">{groupPlayer.username}</td>
+                          <td className="py-3 px-4">{groupPlayer.temp_password}</td>
+                          <td colSpan="3"></td>
+                        </tr>
+                      ))}
+                    </React.Fragment>
+                  ))}
+                </React.Fragment>
               ))}
             </tbody>
           </table>

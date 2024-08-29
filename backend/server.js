@@ -193,9 +193,9 @@ app.post('/api/courts/:id/queue', authenticateToken, async (req, res) => {
           [id, playerId]
         );
       }
-      // Start the timer if it wasn't already running
+      // Start the timer only if it wasn't already running
       if (remainingTime === null) {
-        await manageCourtTimer(id);
+        await pool.query('UPDATE courts SET timer_start = NOW() WHERE id = $1', [id]);
       }
     } else {
       // Add players to the waiting queue

@@ -3,28 +3,21 @@ import axios from 'axios';
 import config from '../config';
 
 function PlayerRegister() {
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
+  const [players, setPlayers] = useState([{ firstName: '', lastName: '' }]);
   const [useDropInPackage, setUseDropInPackage] = useState(false);
   const [packageUses, setPackageUses] = useState(1);
   const [registrationResult, setRegistrationResult] = useState(null);
   const [showResult, setShowResult] = useState(false);
-  const [showWarning, setShowWarning] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!useDropInPackage) {
-      setShowWarning(true);
-      return;
-    }
-    await registerPlayer();
+    await registerPlayers();
   };
 
-  const registerPlayer = async () => {
+  const registerPlayers = async () => {
     try {
-      const response = await axios.post(`${config.apiBaseUrl}/register-player`, { 
-        firstName, 
-        lastName, 
+      const response = await axios.post(`${config.apiBaseUrl}/register-players`, { 
+        players,
         useDropInPackage,
         packageUses: useDropInPackage ? packageUses : 0
       });
@@ -36,42 +29,50 @@ function PlayerRegister() {
     }
   };
 
-  const clearResult = () => {
-    setRegistrationResult(null);
-    setShowResult(false);
-    setShowWarning(false);
-    setFirstName('');
-    setLastName('');
-    setUseDropInPackage(false);
-    setPackageUses(1);
+  const handlePlayerChange = (index, field, value) => {
+    const updatedPlayers = [...players];
+    updatedPlayers[index][field] = value;
+    setPlayers(updatedPlayers);
   };
 
-  const confirmNonPackageRegistration = async () => {
-    await registerPlayer();
-    setShowWarning(false);
+  const handlePackageUsesChange = (value) => {
+    const newPackageUses = Math.max(1, Math.min(4, value));
+    setPackageUses(newPackageUses);
+    setPlayers(prevPlayers => {
+      const newPlayers = [...prevPlayers];
+      while (newPlayers.length < newPackageUses) {
+        newPlayers.push({ firstName: '', lastName: '' });
+      }
+      return newPlayers.slice(0, newPackageUses);
+    });
   };
+
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col items-center justify-center">
       <div className="bg-white p-8 rounded-lg shadow-md w-full max-w-md">
         <h2 className="text-2xl font-bold mb-6 text-center text-gray-800">Player Check-In</h2>
-        {!showResult && !showWarning ? (
+        {!showResult ? (
           <form onSubmit={handleSubmit} className="space-y-4">
-            <input
-              type="text"
-              placeholder="First Name"
-              value={firstName}
-              onChange={(e) => setFirstName(e.target.value)}
-              required
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-            />
-            <input
-              type="text"
-              placeholder="Last Name"
-              value={lastName}
-              onChange={(e) => setLastName(e.target.value)}
-              required
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-            />
+            {players.map((player, index) => (
+              <div key={index}>
+                <input
+                  type="text"
+                  placeholder={`Player ${index + 1} First Name`}
+                  value={player.firstName}
+                  onChange={(e) => handlePlayerChange(index, 'firstName', e.target.value)}
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+                <input
+                  type="text"
+                  placeholder={`Player ${index + 1} Last Name`}
+                  value={player.lastName}
+                  onChange={(e) => handlePlayerChange(index, 'lastName', e.target.value)}
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary mt-2"
+                />
+              </div>
+            ))}
             <div 
               className="flex items-center p-2 rounded-md hover:bg-gray-100 cursor-pointer"
               onClick={() => setUseDropInPackage(!useDropInPackage)}
@@ -91,7 +92,7 @@ function PlayerRegister() {
                 <div className="flex items-center">
                   <button
                     type="button"
-                    onClick={() => setPackageUses(Math.max(1, packageUses - 1))}
+                    onClick={() => handlePackageUsesChange(packageUses - 1)}
                     className="bg-gray-200 text-gray-800 px-3 py-1 rounded-l"
                   >
                     -
@@ -99,7 +100,7 @@ function PlayerRegister() {
                   <span className="bg-gray-100 px-4 py-1">{packageUses}</span>
                   <button
                     type="button"
-                    onClick={() => setPackageUses(packageUses + 1)}
+                    onClick={() => handlePackageUsesChange(packageUses + 1)}
                     className="bg-gray-200 text-gray-800 px-3 py-1 rounded-r"
                   >
                     +
@@ -114,35 +115,26 @@ function PlayerRegister() {
               Check In
             </button>
           </form>
-        ) : showWarning ? (
-          <div className="text-center">
-            <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 mb-4" role="alert">
-              <p className="font-bold">Warning</p>
-              <p>Please confirm with front desk before proceeding.</p>
-            </div>
-            <button
-              onClick={confirmNonPackageRegistration}
-              className="w-full bg-primary text-white py-2 rounded-md hover:bg-green-600 transition duration-300 mb-2"
-            >
-              Confirm Registration
-            </button>
-            <button
-              onClick={() => setShowWarning(false)}
-              className="w-full bg-gray-300 text-gray-800 py-2 rounded-md hover:bg-gray-400 transition duration-300"
-            >
-              Go Back
-            </button>
-          </div>
         ) : (
           <div className="text-center">
             <h3 className="text-xl font-semibold mb-4 text-gray-800">Registration Successful!</h3>
-            <p className="mb-2"><span className="font-semibold">Username:</span> {registrationResult.username}</p>
-            <p className="mb-4"><span className="font-semibold">Temporary Password:</span> {registrationResult.tempPassword}</p>
+            {registrationResult.players.map((player, index) => (
+              <div key={index} className="mb-4">
+                <p className="mb-2"><span className="font-semibold">Player {index + 1}:</span></p>
+                <p className="mb-1"><span className="font-semibold">Username:</span> {player.username}</p>
+                <p className="mb-1"><span className="font-semibold">Temporary Password:</span> {player.tempPassword}</p>
+              </div>
+            ))}
             <button
-              onClick={clearResult}
+              onClick={() => {
+                setShowResult(false);
+                setPlayers([{ firstName: '', lastName: '' }]);
+                setUseDropInPackage(false);
+                setPackageUses(1);
+              }}
               className="w-full bg-primary text-white py-2 rounded-md hover:bg-green-600 transition duration-300"
             >
-              Confirm
+              Register More Players
             </button>
           </div>
         )}
