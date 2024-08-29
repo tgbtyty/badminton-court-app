@@ -353,7 +353,7 @@ async function rotatePlayers(courtId) {
 }
 
 // Run the check every minute
-setInterval(checkAndRotatePlayers, 60000);
+setInterval(checkAndRotatePlayers, 6000);
 
 
 // Get all courts (with basic info)
