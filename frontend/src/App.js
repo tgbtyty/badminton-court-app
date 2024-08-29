@@ -5,6 +5,7 @@ import Register from './components/Register';
 import HomePage from './components/HomePage';
 import PlayerRegister from './components/PlayerRegister';
 import PlayersListPage from './components/PlayersListPage';
+import CourtsPage from './components/CourtsPage';
 import PrivateRoute from './components/PrivateRoute';
 import './index.css';
 
@@ -23,6 +24,7 @@ function App() {
           <Route path="/player-register" element={<PlayerRegister />} />
           <Route path="/home" element={<PrivateRoute><HomePage /></PrivateRoute>} />
           <Route path="/players-list" element={<PrivateRoute><PlayersListPage /></PrivateRoute>} />
+          <Route path="/courts" element={<PrivateRoute><CourtsPage /></PrivateRoute>} />
           <Route path="/" element={<Navigate to="/login" replace />} />
         </Routes>
       </div>

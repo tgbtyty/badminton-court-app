@@ -72,6 +72,15 @@ const authenticateToken = (req, res, next) => {
   });
 };
 
+// Modify the courts table to include current players and queue
+await pool.query(`
+  ALTER TABLE courts 
+  ADD COLUMN IF NOT EXISTS current_players INTEGER[] DEFAULT '{}',
+  ADD COLUMN IF NOT EXISTS queue INTEGER[] DEFAULT '{}',
+  ADD COLUMN IF NOT EXISTS timer_start TIMESTAMP;
+`);
+
+
 // User registration
 app.post('/api/register', async (req, res) => {
   try {
@@ -146,6 +155,95 @@ app.post('/api/login', async (req, res) => {
     res.status(500).json({ message: 'Error logging in', error: error.message });
   }
 });
+
+
+// ... (existing routes)
+
+// Queue players for a court
+app.post('/api/courts/:id/queue', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { playerIds } = req.body;
+
+    const court = await pool.query('SELECT * FROM courts WHERE id = $1', [id]);
+    if (court.rows.length === 0) {
+      return res.status(404).json({ message: 'Court not found' });
+    }
+
+    let currentPlayers = court.rows[0].current_players || [];
+    let queue = court.rows[0].queue || [];
+
+    // If the court is empty, start the timer and add players to the court
+    if (currentPlayers.length === 0) {
+      currentPlayers = playerIds.slice(0, 4);
+      queue = playerIds.slice(4);
+      await pool.query('UPDATE courts SET current_players = $1, queue = $2, timer_start = NOW() WHERE id = $3', [currentPlayers, queue, id]);
+    } else {
+      // If the court is not empty, add players to the queue
+      queue = [...queue, ...playerIds];
+      await pool.query('UPDATE courts SET queue = $1 WHERE id = $2', [queue, id]);
+    }
+
+    res.json({ message: 'Players queued successfully' });
+  } catch (error) {
+    console.error('Error queueing players:', error);
+    res.status(500).json({ message: 'Error queueing players' });
+  }
+});
+
+// Get court details including current players and queue
+app.get('/api/courts/:id', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await pool.query('SELECT * FROM courts WHERE id = $1', [id]);
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: 'Court not found' });
+    }
+    const court = result.rows[0];
+    
+    // Calculate remaining time if timer is active
+    let remainingTime = null;
+    if (court.timer_start) {
+      const elapsedTime = Date.now() - new Date(court.timer_start).getTime();
+      remainingTime = Math.max(0, 15 * 60 * 1000 - elapsedTime);
+      
+      // If time is up, rotate players
+      if (remainingTime === 0) {
+        await rotatePlayers(id);
+        court.current_players = [];
+        court.queue = [];
+        court.timer_start = null;
+      }
+    }
+
+    res.json({
+      ...court,
+      remaining_time: remainingTime
+    });
+  } catch (error) {
+    console.error('Error fetching court details:', error);
+    res.status(500).json({ message: 'Error fetching court details' });
+  }
+});
+
+// Function to rotate players when the timer ends
+async function rotatePlayers(courtId) {
+  const court = await pool.query('SELECT * FROM courts WHERE id = $1', [courtId]);
+  if (court.rows.length === 0) return;
+
+  let currentPlayers = court.rows[0].current_players || [];
+  let queue = court.rows[0].queue || [];
+
+  // Move current players to the end of the queue
+  queue = [...queue, ...currentPlayers];
+
+  // Take up to 4 players from the front of the queue for the court
+  currentPlayers = queue.slice(0, 4);
+  queue = queue.slice(4);
+
+  // Update the court with new players and queue
+  await pool.query('UPDATE courts SET current_players = $1, queue = $2, timer_start = CASE WHEN array_length($1, 1) > 0 THEN NOW() ELSE NULL END WHERE id = $3', [currentPlayers, queue, courtId]);
+}
 
 // Get all courts
 app.get('/api/courts', authenticateToken, async (req, res) => {

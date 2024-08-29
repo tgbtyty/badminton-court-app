@@ -169,6 +169,12 @@ function HomePage() {
           >
             Players List
           </Link>
+          <Link
+            to="/courts"
+            className="bg-primary text-white px-6 py-2 rounded hover:bg-green-600 transition duration-300 text-center"
+          >
+            Courts Page
+          </Link>
         </div>
       </main>
       {showLockModal && (
