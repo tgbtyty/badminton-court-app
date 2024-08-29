@@ -175,7 +175,7 @@ function CourtsPage() {
                 )}
               </div>
             ))}
-            {action === 'queue' && playerCredentials.length < 4 && (
+            {playerCredentials.length < 4 && (
               <button
                 onClick={addPlayerCredential}
                 className="bg-gray-200 text-gray-800 px-4 py-2 rounded mb-4"

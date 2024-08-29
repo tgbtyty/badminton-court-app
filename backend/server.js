@@ -168,16 +168,16 @@ app.post('/api/courts/:id/queue', authenticateToken, async (req, res) => {
       if (user.rows.length === 0) {
         return res.status(400).json({ message: `Player not found: ${cred.username}` });
       }
-      
+
       const validPassword = await bcrypt.compare(cred.password, user.rows[0].password);
       if (!validPassword) {
         return res.status(400).json({ message: `Invalid password for player: ${cred.username}` });
       }
-      
+
       if (await isPlayerActive(user.rows[0].id)) {
         return res.status(400).json({ message: `Player ${cred.username} is already on a court or in a queue` });
       }
-      
+
       validatedPlayers.push(user.rows[0].id);
     }
 
@@ -185,13 +185,17 @@ app.post('/api/courts/:id/queue', authenticateToken, async (req, res) => {
     const remainingTime = await getRemainingTime(id);
 
     // Check if we can merge the new players onto the court
-    if (activePlayers.rows.length + validatedPlayers.length <= 4 && remainingTime > 10 * 60) {
+    if (activePlayers.rows.length + validatedPlayers.length <= 4 && (remainingTime === null || remainingTime > 10 * 60)) {
       // Merge players onto the court
       for (const playerId of validatedPlayers) {
         await pool.query(
           'INSERT INTO active_players (court_id, user_id) VALUES ($1, $2)',
           [id, playerId]
         );
+      }
+      // Start the timer if it wasn't already running
+      if (remainingTime === null) {
+        await manageCourtTimer(id);
       }
     } else {
       // Add players to the waiting queue
@@ -202,9 +206,6 @@ app.post('/api/courts/:id/queue', authenticateToken, async (req, res) => {
         );
       }
     }
-
-    // Manage the court timer
-    await manageCourtTimer(id);
 
     res.json({ message: 'Players added successfully' });
   } catch (error) {
@@ -327,7 +328,6 @@ async function manageCourtTimer(courtId) {
     await pool.query('UPDATE courts SET timer_start = NULL WHERE id = $1', [courtId]);
   }
 }
-
 
 
 // Function to check and rotate players when the timer ends
@@ -498,7 +498,7 @@ app.post('/api/courts/:id/remove', authenticateToken, async (req, res) => {
       if (user.rows.length === 0) {
         return res.status(400).json({ message: `Player not found: ${cred.username}` });
       }
-      
+
       const validPassword = await bcrypt.compare(cred.password, user.rows[0].password);
       if (!validPassword) {
         return res.status(400).json({ message: `Invalid password for player: ${cred.username}` });
