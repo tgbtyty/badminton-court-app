@@ -145,6 +145,51 @@ function PlayersListPage() {
     return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: 'numeric', hour12: true });
   };
 
+  const renderPlayerRow = (player, isGrouped = false) => (
+    <tr key={player.id} className={`border-t ${isGrouped ? 'bg-gray-50' : ''}`}>
+      <td className="py-3 px-4">
+        <button
+          onClick={() => toggleMarkPlayer(player.id)}
+          className="text-2xl focus:outline-none"
+          style={{
+            opacity: player.is_marked ? 1 : 0.3,
+            color: player.is_marked ? '#22c55e' : 'inherit',
+            transition: 'opacity 0.3s, color 0.3s'
+          }}
+        >
+          ✅
+        </button>
+      </td>
+      <td className="py-3 px-4">
+        <button
+          onClick={() => toggleFlagPlayer(player.id)}
+          className="text-2xl focus:outline-none"
+          style={{
+            opacity: player.is_flagged ? 1 : 0.3,
+            color: player.is_flagged ? '#ef4444' : 'inherit',
+            transition: 'opacity 0.3s, color 0.3s'
+          }}
+        >
+          🚩
+        </button>
+      </td>
+      <td className="py-3 px-4">{player.first_name}</td>
+      <td className="py-3 px-4">{player.last_name}</td>
+      <td className="py-3 px-4">{player.username}</td>
+      <td className="py-3 px-4">{player.temp_password}</td>
+      <td className="py-3 px-4">{player.package_uses}</td>
+      <td className="py-3 px-4">{formatTime(player.created_at)}</td>
+      <td className="py-3 px-4">
+        <button
+          onClick={() => removePlayer(player.id)}
+          className="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600 transition duration-300 mr-2"
+        >
+          Remove
+        </button>
+      </td>
+    </tr>
+  );
+
   return (
     <div className="min-h-screen bg-gray-100">
       <header className="bg-primary text-white p-4">
@@ -194,66 +239,25 @@ function PlayersListPage() {
                 <React.Fragment key={packageHolderId}>
                   {groupPlayers.map((player, index) => (
                     <React.Fragment key={player.id}>
-                      <tr className="border-t">
-                        <td className="py-3 px-4">
-                          <button
-                            onClick={() => toggleMarkPlayer(player.id)}
-                            className="text-2xl focus:outline-none"
-                            style={{
-                              opacity: player.is_marked ? 1 : 0.3,
-                              color: player.is_marked ? '#22c55e' : 'inherit',
-                              transition: 'opacity 0.3s, color 0.3s'
-                            }}
-                          >
-                            ✅
-                          </button>
-                        </td>
-                        <td className="py-3 px-4">
-                          <button
-                            onClick={() => toggleFlagPlayer(player.id)}
-                            className="text-2xl focus:outline-none"
-                            style={{
-                              opacity: player.is_flagged ? 1 : 0.3,
-                              color: player.is_flagged ? '#ef4444' : 'inherit',
-                              transition: 'opacity 0.3s, color 0.3s'
-                            }}
-                          >
-                            🚩
-                          </button>
-                        </td>
-                        <td className="py-3 px-4">{player.first_name}</td>
-                        <td className="py-3 px-4">{player.last_name}</td>
-                        <td className="py-3 px-4">{player.username}</td>
-                        <td className="py-3 px-4">{player.temp_password}</td>
-                        <td className="py-3 px-4">{player.package_uses}</td>
-                        <td className="py-3 px-4">{formatTime(player.created_at)}</td>
-                        <td className="py-3 px-4">
-                          <button
-                            onClick={() => removePlayer(player.id)}
-                            className="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600 transition duration-300 mr-2"
-                          >
-                            Remove
-                          </button>
-                          {index === 0 && groupPlayers.length > 1 && (
-                            <button
-                              onClick={() => togglePlayerExpand(player.id)}
-                              className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600 transition duration-300"
-                            >
-                              {expandedPlayers[player.id] ? 'Hide' : 'Show'} Group
-                            </button>
+                      {index === 0 ? (
+                        <>
+                          {renderPlayerRow(player)}
+                          {groupPlayers.length > 1 && (
+                            <tr>
+                              <td colSpan="9" className="py-2 px-4 bg-gray-100">
+                                <button
+                                  onClick={() => togglePlayerExpand(player.id)}
+                                  className="text-blue-500 hover:text-blue-700"
+                                >
+                                  {expandedPlayers[player.id] ? '▼' : '►'} Group Members ({groupPlayers.length - 1})
+                                </button>
+                              </td>
+                            </tr>
                           )}
-                        </td>
-                      </tr>
-                      {index === 0 && expandedPlayers[player.id] && groupPlayers.slice(1).map(groupPlayer => (
-                        <tr key={groupPlayer.id} className="bg-gray-50">
-                          <td colSpan="2"></td>
-                          <td className="py-3 px-4">{groupPlayer.first_name}</td>
-                          <td className="py-3 px-4">{groupPlayer.last_name}</td>
-                          <td className="py-3 px-4">{groupPlayer.username}</td>
-                          <td className="py-3 px-4">{groupPlayer.temp_password}</td>
-                          <td colSpan="3"></td>
-                        </tr>
-                      ))}
+                        </>
+                      ) : (
+                        expandedPlayers[groupPlayers[0].id] && renderPlayerRow(player, true)
+                      )}
                     </React.Fragment>
                   ))}
                 </React.Fragment>
