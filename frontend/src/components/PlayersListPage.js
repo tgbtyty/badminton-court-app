@@ -113,16 +113,11 @@ function PlayersListPage() {
   );
 
   const groupedPlayers = filteredPlayers.reduce((acc, player) => {
-    if (player.package_holder_id) {
-      if (!acc[player.package_holder_id]) {
-        acc[player.package_holder_id] = [];
-      }
-      acc[player.package_holder_id].push(player);
-    } else {
-      if (!acc[player.id]) {
-        acc[player.id] = [player];
-      }
+    const key = player.package_holder_id || player.id;
+    if (!acc[key]) {
+      acc[key] = [];
     }
+    acc[key].push(player);
     return acc;
   }, {});
 
@@ -145,7 +140,7 @@ function PlayersListPage() {
     return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: 'numeric', hour12: true });
   };
 
-  const renderPlayerRow = (player, isGrouped = false) => (
+  const renderPlayerRow = (player, isGrouped = false, isPackageHolder = false) => (
     <tr key={player.id} className={`border-t ${isGrouped ? 'bg-gray-50' : ''}`}>
       <td className="py-3 px-4">
         <button
@@ -177,7 +172,7 @@ function PlayersListPage() {
       <td className="py-3 px-4">{player.last_name}</td>
       <td className="py-3 px-4">{player.username}</td>
       <td className="py-3 px-4">{player.temp_password}</td>
-      <td className="py-3 px-4">{player.package_uses}</td>
+      <td className="py-3 px-4">{isPackageHolder ? player.package_uses : ''}</td>
       <td className="py-3 px-4">{formatTime(player.created_at)}</td>
       <td className="py-3 px-4">
         <button
@@ -235,31 +230,25 @@ function PlayersListPage() {
               </tr>
             </thead>
             <tbody>
-              {Object.entries(groupedPlayers).map(([packageHolderId, groupPlayers]) => (
-                <React.Fragment key={packageHolderId}>
-                  {groupPlayers.map((player, index) => (
-                    <React.Fragment key={player.id}>
-                      {index === 0 ? (
-                        <>
-                          {renderPlayerRow(player)}
-                          {groupPlayers.length > 1 && (
-                            <tr>
-                              <td colSpan="9" className="py-2 px-4 bg-gray-100">
-                                <button
-                                  onClick={() => togglePlayerExpand(player.id)}
-                                  className="text-blue-500 hover:text-blue-700"
-                                >
-                                  {expandedPlayers[player.id] ? '▼' : '►'} Group Members ({groupPlayers.length - 1})
-                                </button>
-                              </td>
-                            </tr>
-                          )}
-                        </>
-                      ) : (
-                        expandedPlayers[groupPlayers[0].id] && renderPlayerRow(player, true)
-                      )}
-                    </React.Fragment>
-                  ))}
+              {Object.entries(groupedPlayers).map(([key, group]) => (
+                <React.Fragment key={key}>
+                  {renderPlayerRow(group[0], false, true)}
+                  {group.length > 1 && (
+                    <tr>
+                      <td colSpan="9" className="py-2 px-4 bg-gray-100">
+                        <button
+                          onClick={() => togglePlayerExpand(group[0].id)}
+                          className="text-blue-500 hover:text-blue-700 flex items-center"
+                        >
+                          <span className="mr-2">
+                            {expandedPlayers[group[0].id] ? '▼' : '►'}
+                          </span>
+                          Group Members ({group.length - 1})
+                        </button>
+                      </td>
+                    </tr>
+                  )}
+                  {expandedPlayers[group[0].id] && group.slice(1).map(player => renderPlayerRow(player, true))}
                 </React.Fragment>
               ))}
             </tbody>
