@@ -72,15 +72,6 @@ const authenticateToken = (req, res, next) => {
   });
 };
 
-// Modify the courts table to include current players and queue
-await pool.query(`
-  ALTER TABLE courts 
-  ADD COLUMN IF NOT EXISTS current_players INTEGER[] DEFAULT '{}',
-  ADD COLUMN IF NOT EXISTS queue INTEGER[] DEFAULT '{}',
-  ADD COLUMN IF NOT EXISTS timer_start TIMESTAMP;
-`);
-
-
 // User registration
 app.post('/api/register', async (req, res) => {
   try {
