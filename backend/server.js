@@ -169,7 +169,11 @@ app.post('/api/courts/:id/queue', authenticateToken, async (req, res) => {
         return res.status(400).json({ message: `Player not found: ${cred.username}` });
       }
       
-      const validPassword = await bcrypt.compare(cred.password, user.rows[0].temp_password);
+      console.log('Stored hashed password:', user.rows[0].password);
+      console.log('Provided password:', cred.password);
+      const validPassword = await bcrypt.compare(cred.password, user.rows[0].password);
+      console.log('Password comparison result:', validPassword);
+
       if (!validPassword) {
         return res.status(400).json({ message: `Invalid password for player: ${cred.username}` });
       }
@@ -202,7 +206,7 @@ app.post('/api/courts/:id/queue', authenticateToken, async (req, res) => {
     res.json({ message: 'Players queued successfully' });
   } catch (error) {
     console.error('Error queueing players:', error);
-    res.status(500).json({ message: 'Error queueing players' });
+    res.status(500).json({ message: 'Error queueing players', error: error.message });
   }
 });
 
@@ -404,7 +408,7 @@ app.post('/api/register-player', async (req, res) => {
     });
   } catch (error) {
     console.error('Error registering player:', error);
-    res.status(500).json({ message: 'Error registering player', details: error.message });
+    res.status(500).json({ message: 'Error registering player', error: error.message });
   }
 });
 
