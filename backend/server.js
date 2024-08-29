@@ -524,7 +524,57 @@ app.post('/api/courts/:id/remove', authenticateToken, async (req, res) => {
   }
 });
 
+// Register multiple players
+app.post('/api/register-players', async (req, res) => {
+  try {
+    const { players, useDropInPackage, packageUses } = req.body;
 
+    const registeredPlayers = [];
+    let packageHolderId = null;
+
+    for (let i = 0; i < players.length; i++) {
+      const { firstName, lastName } = players[i];
+
+      // Generate username
+      let username = firstName.toLowerCase();
+      let suffix = 1;
+      while (true) {
+        const existingUser = await pool.query('SELECT * FROM users WHERE username = $1 AND user_type = $2', [username, 'player']);
+        if (existingUser.rows.length === 0) break;
+        username = `${firstName.toLowerCase()}${++suffix}`;
+      }
+
+      // Generate temporary password
+      const tempPassword = zodiacAnimals[Math.floor(Math.random() * zodiacAnimals.length)];
+
+      // Hash the temporary password
+      const hashedPassword = await bcrypt.hash(tempPassword, 10);
+
+      // Insert new player
+      const result = await pool.query(
+        'INSERT INTO users (username, password, first_name, last_name, user_type, temp_password, package_uses, package_holder_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id, username, temp_password',
+        [username, hashedPassword, firstName, lastName, 'player', tempPassword, i === 0 ? packageUses : 0, packageHolderId]
+      );
+
+      if (i === 0 && useDropInPackage) {
+        packageHolderId = result.rows[0].id;
+      }
+
+      registeredPlayers.push({
+        username: result.rows[0].username,
+        tempPassword: result.rows[0].temp_password
+      });
+    }
+
+    res.status(201).json({ 
+      message: 'Players registered successfully',
+      players: registeredPlayers
+    });
+  } catch (error) {
+    console.error('Error registering players:', error);
+    res.status(500).json({ message: 'Error registering players', error: error.message });
+  }
+});
 
 // Clear all players
 app.delete('/api/players', authenticateToken, async (req, res) => {
