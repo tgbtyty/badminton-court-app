@@ -161,7 +161,7 @@ app.post('/api/courts/:id/queue', authenticateToken, async (req, res) => {
       return res.status(404).json({ message: 'Court not found' });
     }
 
-    // Verify player credentials and check if they're already queued
+    // Verify player credentials and check if they're already active
     const validatedPlayers = [];
     for (const cred of playerCredentials) {
       const user = await pool.query('SELECT * FROM users WHERE username = $1', [cred.username]);
@@ -169,48 +169,66 @@ app.post('/api/courts/:id/queue', authenticateToken, async (req, res) => {
         return res.status(400).json({ message: `Player not found: ${cred.username}` });
       }
       
-      console.log('Stored hashed password:', user.rows[0].password);
-      console.log('Provided password:', cred.password);
       const validPassword = await bcrypt.compare(cred.password, user.rows[0].password);
-      console.log('Password comparison result:', validPassword);
-
       if (!validPassword) {
         return res.status(400).json({ message: `Invalid password for player: ${cred.username}` });
       }
       
-      const alreadyQueued = await pool.query(
-        'SELECT * FROM waiting_players WHERE user_id = $1',
-        [user.rows[0].id]
-      );
-      if (alreadyQueued.rows.length > 0) {
-        return res.status(400).json({ message: `Player ${cred.username} is already queued` });
+      if (await isPlayerActive(user.rows[0].id)) {
+        return res.status(400).json({ message: `Player ${cred.username} is already on a court or in a queue` });
       }
       
       validatedPlayers.push(user.rows[0].id);
     }
 
-    // Add players to the waiting queue
-    for (const playerId of validatedPlayers) {
-      await pool.query(
-        'INSERT INTO waiting_players (court_id, user_id) VALUES ($1, $2)',
-        [id, playerId]
-      );
-    }
-
-    // Check if the court is empty and move players if necessary
     const activePlayers = await pool.query('SELECT * FROM active_players WHERE court_id = $1', [id]);
-    if (activePlayers.rows.length === 0) {
-      await movePlayersToActiveCourt(id);
+    const remainingTime = await getRemainingTime(id);
+
+    // Check if we can merge the new players onto the court
+    if (activePlayers.rows.length + validatedPlayers.length <= 4 && remainingTime > 10 * 60) {
+      // Merge players onto the court
+      for (const playerId of validatedPlayers) {
+        await pool.query(
+          'INSERT INTO active_players (court_id, user_id) VALUES ($1, $2)',
+          [id, playerId]
+        );
+      }
+    } else {
+      // Add players to the waiting queue
+      for (const playerId of validatedPlayers) {
+        await pool.query(
+          'INSERT INTO waiting_players (court_id, user_id) VALUES ($1, $2)',
+          [id, playerId]
+        );
+      }
     }
 
+    // Manage the court timer
     await manageCourtTimer(id);
 
-    res.json({ message: 'Players queued successfully' });
+    res.json({ message: 'Players added successfully' });
   } catch (error) {
-    console.error('Error queueing players:', error);
-    res.status(500).json({ message: 'Error queueing players', error: error.message });
+    console.error('Error adding players:', error);
+    res.status(500).json({ message: 'Error adding players' });
   }
 });
+
+// Helper function to get remaining time for a court
+async function getRemainingTime(courtId) {
+  const court = await pool.query('SELECT timer_start FROM courts WHERE id = $1', [courtId]);
+  if (court.rows[0].timer_start) {
+    const elapsedTime = Date.now() - new Date(court.rows[0].timer_start).getTime();
+    return Math.max(0, 15 * 60 - Math.floor(elapsedTime / 1000));
+  }
+  return null;
+}
+
+// Helper function to check if a player is already on a court or in a queue
+async function isPlayerActive(userId) {
+  const activePlayer = await pool.query('SELECT * FROM active_players WHERE user_id = $1', [userId]);
+  const waitingPlayer = await pool.query('SELECT * FROM waiting_players WHERE user_id = $1', [userId]);
+  return activePlayer.rows.length > 0 || waitingPlayer.rows.length > 0;
+}
 
 // Helper function to move players from waiting to active
 async function movePlayersToActiveCourt(courtId) {
@@ -297,6 +315,7 @@ app.get('/api/courts', authenticateToken, async (req, res) => {
   }
 });
 
+
 // Helper function to start or reset the timer for a court
 async function manageCourtTimer(courtId) {
   const activePlayers = await pool.query('SELECT * FROM active_players WHERE court_id = $1', [courtId]);
@@ -310,12 +329,13 @@ async function manageCourtTimer(courtId) {
 }
 
 
+
 // Function to check and rotate players when the timer ends
 async function checkAndRotatePlayers() {
   const courts = await pool.query('SELECT * FROM courts WHERE timer_start IS NOT NULL');
   for (const court of courts.rows) {
-    const elapsedTime = Date.now() - new Date(court.timer_start).getTime();
-    if (elapsedTime >= 15 * 60 * 1000) { // 15 minutes
+    const remainingTime = await getRemainingTime(court.id);
+    if (remainingTime === 0) {
       await rotatePlayers(court.id);
     }
   }

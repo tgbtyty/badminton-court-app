@@ -100,9 +100,13 @@ function CourtsPage() {
               className="bg-white p-4 rounded shadow hover:shadow-lg transition duration-300"
             >
               <h3 className="text-xl font-bold mb-2">{court.name}</h3>
-              <p className="mb-2">Timer: {court.remaining_time ? formatTime(court.remaining_time) : 'Not started'}</p>
+              <p className="mb-2">
+                Timer: {court.remaining_time && court.active_players.length > 0
+                  ? formatTime(court.remaining_time)
+                  : 'Not started'}
+              </p>
               <div className="mb-2">
-                <h4 className="font-semibold">Active Players:</h4>
+                <h4 className="font-semibold">Active Players ({court.active_players.length}/4):</h4>
                 <ul>
                   {court.active_players.map((player, index) => (
                     <li key={index}>{player.first_name} {player.last_name}</li>
