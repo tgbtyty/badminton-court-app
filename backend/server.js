@@ -230,38 +230,63 @@ async function movePlayersToActiveCourt(courtId) {
 }
 
 // Get court details including current players and queue
-app.get('/api/courts/:id', authenticateToken, async (req, res) => {
+app.get('/api/courts', authenticateToken, async (req, res) => {
   try {
-    const { id } = req.params;
-    const court = await pool.query('SELECT * FROM courts WHERE id = $1', [id]);
-    if (court.rows.length === 0) {
-      return res.status(404).json({ message: 'Court not found' });
-    }
+    const courtsResult = await pool.query('SELECT * FROM courts');
+    const courts = await Promise.all(courtsResult.rows.map(async (court) => {
+      // Get active players
+      const activePlayers = await pool.query(`
+        SELECT u.id, u.first_name, u.last_name 
+        FROM active_players ap 
+        JOIN users u ON ap.user_id = u.id 
+        WHERE ap.court_id = $1
+      `, [court.id]);
 
-    const activePlayers = await pool.query(
-      'SELECT u.id, u.first_name, u.last_name FROM active_players ap JOIN users u ON ap.user_id = u.id WHERE ap.court_id = $1',
-      [id]
-    );
+      // Get waiting players
+      const waitingPlayers = await pool.query(`
+        SELECT u.id, u.first_name, u.last_name, wp.joined_at 
+        FROM waiting_players wp 
+        JOIN users u ON wp.user_id = u.id 
+        WHERE wp.court_id = $1 
+        ORDER BY wp.joined_at
+      `, [court.id]);
 
-    const waitingPlayers = await pool.query(
-      'SELECT u.id, u.first_name, u.last_name FROM waiting_players wp JOIN users u ON wp.user_id = u.id WHERE wp.court_id = $1 ORDER BY wp.joined_at',
-      [id]
-    );
+      // Group waiting players
+      const waitingGroups = [];
+      let currentGroup = [];
+      let currentJoinedAt = null;
+      for (const player of waitingPlayers.rows) {
+        if (!currentJoinedAt || player.joined_at.getTime() - currentJoinedAt.getTime() < 1000) {
+          currentGroup.push(player);
+        } else {
+          waitingGroups.push(currentGroup);
+          currentGroup = [player];
+        }
+        currentJoinedAt = player.joined_at;
+      }
+      if (currentGroup.length > 0) {
+        waitingGroups.push(currentGroup);
+      }
 
-    // Group waiting players
-    const waitingGroups = [];
-    for (let i = 0; i < waitingPlayers.rows.length; i += 4) {
-      waitingGroups.push(waitingPlayers.rows.slice(i, i + 4));
-    }
+      // Calculate remaining time
+      let remainingTime = null;
+      if (court.timer_start) {
+        const elapsedTime = Date.now() - new Date(court.timer_start).getTime();
+        remainingTime = Math.max(0, 15 * 60 - Math.floor(elapsedTime / 1000));
+      }
 
-    res.json({
-      ...court.rows[0],
-      active_players: activePlayers.rows,
-      waiting_groups: waitingGroups
-    });
+      return {
+        ...court,
+        active_players: activePlayers.rows,
+        waiting_groups: waitingGroups,
+        remaining_time: remainingTime
+      };
+    }));
+
+    res.json(courts);
   } catch (error) {
-    console.error('Error fetching court details:', error);
-    res.status(500).json({ message: 'Error fetching court details' });
+    console.error('Error fetching courts:', error);
+    res.status(500).json({ message: 'Error fetching courts' });
   }
 });
 

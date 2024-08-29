@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Link } from 'react-router-dom';
 import config from '../config';
 
 function CourtsPage() {
@@ -66,25 +65,54 @@ function CourtsPage() {
     }
   };
 
+  const formatTime = (seconds) => {
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+  };
+
   return (
     <div className="min-h-screen bg-gray-100">
       <header className="bg-primary text-white p-4">
         <h1 className="text-3xl font-bold">Courts</h1>
       </header>
       <main className="container mx-auto p-4">
-        <Link to="/home" className="bg-primary text-white px-6 py-2 rounded hover:bg-green-600 transition duration-300 mb-4 inline-block">
-          Back to Home
-        </Link>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {courts.map(court => (
             <div 
               key={court.id} 
-              className="bg-white p-4 rounded shadow cursor-pointer hover:shadow-lg transition duration-300"
-              onClick={() => handleCourtSelect(court)}
+              className="bg-white p-4 rounded shadow hover:shadow-lg transition duration-300"
             >
               <h3 className="text-xl font-bold mb-2">{court.name}</h3>
-              <p className="mb-2">Active Players: {court.active_player_count}/4</p>
-              <p>Waiting: {court.waiting_player_count} players</p>
+              <p className="mb-2">Timer: {court.remaining_time ? formatTime(court.remaining_time) : 'Not started'}</p>
+              <div className="mb-2">
+                <h4 className="font-semibold">Active Players:</h4>
+                <ul>
+                  {court.active_players.map((player, index) => (
+                    <li key={index}>{player.first_name} {player.last_name}</li>
+                  ))}
+                </ul>
+              </div>
+              <div className="mb-2">
+                <h4 className="font-semibold">Queued Groups:</h4>
+                {court.waiting_groups.map((group, groupIndex) => (
+                  <div key={groupIndex} className="ml-2 mb-1">
+                    <span className="font-medium">Group {groupIndex + 1}:</span>
+                    <ul className="list-disc list-inside">
+                      {group.map((player, playerIndex) => (
+                        <li key={playerIndex}>{player.first_name} {player.last_name}</li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
+              </div>
+              <button
+                onClick={() => handleCourtSelect(court)}
+                className="bg-primary text-white px-4 py-2 rounded hover:bg-green-600 transition duration-300"
+                disabled={court.active_players.length >= 4}
+              >
+                Queue for This Court
+              </button>
             </div>
           ))}
         </div>
