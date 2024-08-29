@@ -553,11 +553,13 @@ app.post('/api/register-players', async (req, res) => {
       // Insert new player
       const result = await pool.query(
         'INSERT INTO users (username, password, first_name, last_name, user_type, temp_password, package_uses, package_holder_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id, username, temp_password',
-        [username, hashedPassword, firstName, lastName, 'player', tempPassword, i === 0 ? packageUses : 0, packageHolderId]
+        [username, hashedPassword, firstName, lastName, 'player', tempPassword, i === 0 && useDropInPackage ? packageUses : 0, packageHolderId]
       );
 
       if (i === 0 && useDropInPackage) {
         packageHolderId = result.rows[0].id;
+        // Update the first player to be their own package holder
+        await pool.query('UPDATE users SET package_holder_id = $1 WHERE id = $1', [packageHolderId]);
       }
 
       registeredPlayers.push({
