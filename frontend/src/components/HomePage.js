@@ -59,10 +59,13 @@ function HomePage() {
 
   const lockCourt = async () => {
     try {
+      const today = new Date().toISOString().split('T')[0]; // Get current date
+      const startDateTime = new Date(`${today}T${lockStartTime}`);
       const [hours, minutes] = lockDuration.split(':').map(Number);
       const durationInMinutes = hours * 60 + minutes;
+  
       await axios.post(`${config.apiBaseUrl}/courts/${selectedCourt.id}/lock`, {
-        startTime: lockStartTime,
+        startTime: startDateTime.toISOString(),
         duration: durationInMinutes
       }, {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }

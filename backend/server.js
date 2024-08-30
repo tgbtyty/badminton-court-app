@@ -405,15 +405,23 @@ app.post('/api/courts/:id/lock', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
     const { startTime, duration } = req.body;
-    const unlockTime = new Date(new Date(startTime).getTime() + duration * 60000);
+
+    const startDateTime = new Date(startTime);
+    const unlockTime = new Date(startDateTime.getTime() + duration * 60000);
+
     const result = await pool.query(
       'UPDATE courts SET is_locked = true, unlock_time = $1 WHERE id = $2 RETURNING *',
       [unlockTime, id]
     );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: 'Court not found' });
+    }
+
     res.json(result.rows[0]);
   } catch (error) {
     console.error('Error locking court:', error);
-    res.status(500).json({ message: 'Error locking court' });
+    res.status(500).json({ message: 'Error locking court', error: error.message });
   }
 });
 
