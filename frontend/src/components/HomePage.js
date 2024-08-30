@@ -11,7 +11,6 @@ function HomePage() {
   const [selectedCourt, setSelectedCourt] = useState(null);
   const [lockStartTime, setLockStartTime] = useState('');
   const [lockDuration, setLockDuration] = useState('');
-  const [lockReason, setLockReason] = useState('');
   const [showColorPicker, setShowColorPicker] = useState(false);
 
   useEffect(() => {
@@ -56,22 +55,18 @@ function HomePage() {
   const openLockModal = (court) => {
     setSelectedCourt(court);
     setShowLockModal(true);
-    setLockStartTime('');
-    setLockDuration('');
-    setLockReason('');
   };
 
   const lockCourt = async () => {
     try {
-      const today = new Date().toISOString().split('T')[0];
+      const today = new Date().toISOString().split('T')[0]; // Get current date
       const startDateTime = new Date(`${today}T${lockStartTime}`);
       const [hours, minutes] = lockDuration.split(':').map(Number);
       const durationInMinutes = hours * 60 + minutes;
-
+  
       await axios.post(`${config.apiBaseUrl}/courts/${selectedCourt.id}/lock`, {
         startTime: startDateTime.toISOString(),
-        duration: durationInMinutes,
-        reason: lockReason
+        duration: durationInMinutes
       }, {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
       });
@@ -82,20 +77,9 @@ function HomePage() {
     }
   };
 
-  const removeLock = async (courtId, lockId) => {
-    try {
-      await axios.delete(`${config.apiBaseUrl}/courts/${courtId}/lock/${lockId}`, {
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
-      });
-      fetchCourts();
-    } catch (error) {
-      console.error('Error removing lock:', error);
-    }
-  };
-
-  const formatTime = (dateString) => {
-    const date = new Date(dateString);
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const openPlayerRegistration = () => {
+    window.open(`${window.location.origin}/player-register`, '_blank');
+    window.location.href = '/player-register';
   };
 
   const onDragEnd = (result) => {
@@ -144,24 +128,6 @@ function HomePage() {
                           <p className="mb-2">Status: <span className={`font-semibold ${court.is_locked ? 'text-red-500' : 'text-green-500'}`}>
                             {court.is_locked ? 'Locked' : 'Available'}
                           </span></p>
-                          {court.locks && court.locks.length > 0 && (
-                            <div className="mb-2">
-                              <h4 className="font-semibold">Scheduled Locks:</h4>
-                              <ul>
-                                {court.locks.map((lock) => (
-                                  <li key={lock.id} className="flex justify-between items-center">
-                                    <span>{formatTime(lock.start_time)} - {formatTime(lock.end_time)}: {lock.reason}</span>
-                                    <button
-                                      onClick={() => removeLock(court.id, lock.id)}
-                                      className="text-red-500 hover:text-red-700"
-                                    >
-                                      Remove
-                                    </button>
-                                  </li>
-                                ))}
-                              </ul>
-                            </div>
-                          )}
                           <button
                             onClick={() => openLockModal(court)}
                             className="bg-primary text-white px-4 py-2 rounded hover:bg-green-600 transition duration-300"
@@ -178,7 +144,41 @@ function HomePage() {
             </Droppable>
           </DragDropContext>
         </div>
-        {/* ... (rest of the component remains the same) */}
+        <div className="flex space-x-4 mb-8">
+          <button
+            onClick={addCourt}
+            className="bg-primary text-white px-6 py-2 rounded hover:bg-green-600 transition duration-300"
+          >
+            Add Court
+          </button>
+          <button
+            onClick={removeCourt}
+            className="bg-red-500 text-white px-6 py-2 rounded hover:bg-red-600 transition duration-300"
+          >
+            Remove Court
+          </button>
+        </div>
+        <div className="flex flex-col space-y-4">
+          <a
+            href="/player-register"
+            onClick={openPlayerRegistration}
+            className="bg-primary text-white px-6 py-2 rounded hover:bg-green-600 transition duration-300 text-center"
+          >
+            Player Registration Page
+          </a>
+          <Link
+            to="/players-list"
+            className="bg-primary text-white px-6 py-2 rounded hover:bg-green-600 transition duration-300 text-center"
+          >
+            Players List
+          </Link>
+          <Link
+            to="/courts"
+            className="bg-primary text-white px-6 py-2 rounded hover:bg-green-600 transition duration-300 text-center"
+          >
+            Courts Page
+          </Link>
+        </div>
       </main>
       {showLockModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
@@ -194,13 +194,6 @@ function HomePage() {
               type="time"
               value={lockDuration}
               onChange={(e) => setLockDuration(e.target.value)}
-              className="block w-full mb-4 p-2 border rounded"
-            />
-            <input
-              type="text"
-              value={lockReason}
-              onChange={(e) => setLockReason(e.target.value)}
-              placeholder="Reason for locking"
               className="block w-full mb-4 p-2 border rounded"
             />
             <div className="flex justify-end space-x-2">
