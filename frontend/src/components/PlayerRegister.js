@@ -54,7 +54,7 @@ function PlayerRegister() {
               <div key={index} className="space-y-4">
                 <input
                   type="text"
-                  placeholder={`Player ${index + 1} First Name`}
+                  placeholder="First Name"
                   value={player.firstName}
                   onChange={(e) => handlePlayerChange(index, 'firstName', e.target.value)}
                   required
@@ -62,7 +62,7 @@ function PlayerRegister() {
                 />
                 <input
                   type="text"
-                  placeholder={`Player ${index + 1} Last Name`}
+                  placeholder="Last Name"
                   value={player.lastName}
                   onChange={(e) => handlePlayerChange(index, 'lastName', e.target.value)}
                   required
@@ -117,7 +117,7 @@ function PlayerRegister() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
           <div className="bg-white p-8 rounded-lg shadow-md max-w-md">
             <h3 className="text-2xl font-bold mb-4 text-red-600">Warning</h3>
-            <p className="text-lg mb-6">PLEASE CONFIRM WITH FRONT DESK THAT YOU DO NOT HAVE A PACKAGE</p>
+            <p className="text-lg mb-6">PLEASE <strong>CONFIRM WITH FRONT DESK</strong> THAT YOU DO <strong>NOT</strong> HAVE A PACKAGE</p>
             <div className="flex justify-end space-x-4">
               <button
                 onClick={() => setShowWarning(false)}
