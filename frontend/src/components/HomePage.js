@@ -11,10 +11,13 @@ function HomePage() {
   const [selectedCourt, setSelectedCourt] = useState(null);
   const [lockStartTime, setLockStartTime] = useState('');
   const [lockDuration, setLockDuration] = useState('');
+  const [lockReason, setLockReason] = useState('');
   const [showColorPicker, setShowColorPicker] = useState(false);
 
   useEffect(() => {
     fetchCourts();
+    const interval = setInterval(fetchCourts, 30000); // Refresh every 30 seconds
+    return () => clearInterval(interval);
   }, []);
 
   const fetchCourts = async () => {
@@ -55,18 +58,22 @@ function HomePage() {
   const openLockModal = (court) => {
     setSelectedCourt(court);
     setShowLockModal(true);
+    setLockStartTime('');
+    setLockDuration('');
+    setLockReason('');
   };
 
   const lockCourt = async () => {
     try {
-      const today = new Date().toISOString().split('T')[0]; // Get current date
+      const today = new Date().toISOString().split('T')[0];
       const startDateTime = new Date(`${today}T${lockStartTime}`);
       const [hours, minutes] = lockDuration.split(':').map(Number);
       const durationInMinutes = hours * 60 + minutes;
-  
+
       await axios.post(`${config.apiBaseUrl}/courts/${selectedCourt.id}/lock`, {
         startTime: startDateTime.toISOString(),
-        duration: durationInMinutes
+        duration: durationInMinutes,
+        reason: lockReason
       }, {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
       });
@@ -74,6 +81,17 @@ function HomePage() {
       fetchCourts();
     } catch (error) {
       console.error('Error locking court:', error);
+    }
+  };
+
+  const removeLock = async (courtId, lockId) => {
+    try {
+      await axios.delete(`${config.apiBaseUrl}/courts/${courtId}/lock/${lockId}`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+      });
+      fetchCourts();
+    } catch (error) {
+      console.error('Error removing lock:', error);
     }
   };
 
@@ -92,6 +110,11 @@ function HomePage() {
     items.splice(result.destination.index, 0, reorderedItem);
 
     setCourts(items);
+  };
+
+  const formatTime = (dateString) => {
+    const date = new Date(dateString);
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
   return (
@@ -128,6 +151,26 @@ function HomePage() {
                           <p className="mb-2">Status: <span className={`font-semibold ${court.is_locked ? 'text-red-500' : 'text-green-500'}`}>
                             {court.is_locked ? 'Locked' : 'Available'}
                           </span></p>
+                          <p className="mb-2">Active Players: {court.active_player_count}</p>
+                          <p className="mb-2">Waiting Players: {court.waiting_player_count}</p>
+                          {court.locks && court.locks.length > 0 && (
+                            <div className="mb-2">
+                              <h4 className="font-semibold">Scheduled Locks:</h4>
+                              <ul>
+                                {court.locks.map((lock) => (
+                                  <li key={lock.id} className="flex justify-between items-center">
+                                    <span>{formatTime(lock.start_time)} - {formatTime(lock.end_time)}: {lock.reason}</span>
+                                    <button
+                                      onClick={() => removeLock(court.id, lock.id)}
+                                      className="text-red-500 hover:text-red-700"
+                                    >
+                                      Remove
+                                    </button>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
                           <button
                             onClick={() => openLockModal(court)}
                             className="bg-primary text-white px-4 py-2 rounded hover:bg-green-600 transition duration-300"
@@ -194,6 +237,13 @@ function HomePage() {
               type="time"
               value={lockDuration}
               onChange={(e) => setLockDuration(e.target.value)}
+              className="block w-full mb-4 p-2 border rounded"
+            />
+            <input
+              type="text"
+              value={lockReason}
+              onChange={(e) => setLockReason(e.target.value)}
+              placeholder="Reason for locking"
               className="block w-full mb-4 p-2 border rounded"
             />
             <div className="flex justify-end space-x-2">
