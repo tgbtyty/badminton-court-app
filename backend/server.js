@@ -435,7 +435,7 @@ app.post('/api/courts/:id/unlock', authenticateToken, async (req, res) => {
   }
 });
 
-const zodiacAnimals = ['Rat', 'Ox', 'Tiger', 'Rabbit', 'Dragon', 'Snake', 'Horse', 'Goat', 'Monkey', 'Rooster', 'Dog', 'Pig'];
+const zodiacAnimals = ['rat', 'ox', 'tiger', 'rabbit', 'dragon', 'snake', 'horse', 'goat', 'monkey', 'rooster', 'dog', 'pig'];
 
 // Register a player
 app.post('/api/register-player', async (req, res) => {
@@ -451,7 +451,7 @@ app.post('/api/register-player', async (req, res) => {
       username = `${firstName.toLowerCase()}${++suffix}`;
     }
 
-    // Generate temporary password
+    // Generate temporary password (now lowercase)
     const tempPassword = zodiacAnimals[Math.floor(Math.random() * zodiacAnimals.length)];
 
     // Hash the temporary password
@@ -475,6 +475,7 @@ app.post('/api/register-player', async (req, res) => {
     res.status(500).json({ message: 'Error registering player', error: error.message });
   }
 });
+
 
 // Modify the get all players route to include notes
 app.get('/api/players', authenticateToken, async (req, res) => {
@@ -544,7 +545,7 @@ app.post('/api/register-players', async (req, res) => {
         username = `${firstName.toLowerCase()}${++suffix}`;
       }
 
-      // Generate temporary password
+      // Generate temporary password (now lowercase)
       const tempPassword = zodiacAnimals[Math.floor(Math.random() * zodiacAnimals.length)];
 
       // Hash the temporary password
