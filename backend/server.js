@@ -476,10 +476,10 @@ app.post('/api/register-player', async (req, res) => {
   }
 });
 
-// Get all players
+// Modify the get all players route to include notes
 app.get('/api/players', authenticateToken, async (req, res) => {
   try {
-    const result = await pool.query('SELECT id, username, first_name, last_name, temp_password, use_drop_in_package, package_uses, created_at, is_marked, is_flagged FROM users WHERE user_type = $1', ['player']);
+    const result = await pool.query('SELECT id, username, first_name, last_name, temp_password, use_drop_in_package, package_uses, created_at, is_marked, is_flagged, note FROM users WHERE user_type = $1', ['player']);
     res.json(result.rows);
   } catch (error) {
     console.error('Error fetching players:', error);
@@ -675,6 +675,25 @@ app.post('/api/players/:id/toggle-flag', authenticateToken, async (req, res) => 
   } catch (error) {
     console.error('Error toggling player flag:', error);
     res.status(500).json({ message: 'Error toggling player flag' });
+  }
+});
+
+// Add a new route to update player notes
+app.post('/api/players/:id/note', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { note } = req.body;
+    const result = await pool.query(
+      'UPDATE users SET note = $1 WHERE id = $2 AND user_type = $3 RETURNING *',
+      [note, id, 'player']
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: 'Player not found' });
+    }
+    res.json({ message: 'Note updated successfully' });
+  } catch (error) {
+    console.error('Error updating player note:', error);
+    res.status(500).json({ message: 'Error updating player note' });
   }
 });
 

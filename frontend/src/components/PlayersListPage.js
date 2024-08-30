@@ -9,6 +9,7 @@ function PlayersListPage() {
   const [sortColumn, setSortColumn] = useState('');
   const [sortDirection, setSortDirection] = useState('asc');
   const [expandedPlayers, setExpandedPlayers] = useState({});
+  const [playerNotes, setPlayerNotes] = useState({});
 
   useEffect(() => {
     fetchPlayers();
@@ -22,6 +23,11 @@ function PlayersListPage() {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
       });
       setPlayers(response.data);
+      const notes = {};
+      response.data.forEach(player => {
+        notes[player.id] = player.note || '';
+      });
+      setPlayerNotes(notes);
     } catch (error) {
       console.error('Error fetching players:', error);
     }
@@ -34,6 +40,7 @@ function PlayersListPage() {
           headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
         });
         setPlayers([]);
+        setPlayerNotes({});
       } catch (error) {
         console.error('Error clearing all players:', error);
       }
@@ -47,6 +54,11 @@ function PlayersListPage() {
           headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
         });
         setPlayers(players.filter(player => player.id !== id));
+        setPlayerNotes(prevNotes => {
+          const newNotes = { ...prevNotes };
+          delete newNotes[id];
+          return newNotes;
+        });
       } catch (error) {
         console.error('Error removing player:', error);
       }
@@ -89,6 +101,17 @@ function PlayersListPage() {
       ));
     } catch (error) {
       console.error('Error toggling player flag:', error);
+    }
+  };
+
+  const handleNoteChange = async (playerId, note) => {
+    try {
+      await axios.post(`${config.apiBaseUrl}/players/${playerId}/note`, { note }, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+      });
+      setPlayerNotes(prev => ({ ...prev, [playerId]: note }));
+    } catch (error) {
+      console.error('Error updating note:', error);
     }
   };
 
@@ -182,6 +205,15 @@ function PlayersListPage() {
           Remove
         </button>
       </td>
+      <td className="py-3 px-4">
+        <input
+          type="text"
+          value={playerNotes[player.id] || ''}
+          onChange={(e) => handleNoteChange(player.id, e.target.value)}
+          className="w-full px-2 py-1 border rounded"
+          placeholder="Add note..."
+        />
+      </td>
     </tr>
   );
 
@@ -227,6 +259,7 @@ function PlayersListPage() {
                 <th className="py-3 px-4 text-left"><SortButton column="package_uses" label="Package Uses" /></th>
                 <th className="py-3 px-4 text-left"><SortButton column="created_at" label="Registration Time" /></th>
                 <th className="py-3 px-4 text-left">Actions</th>
+                <th className="py-3 px-4 text-left">Notes</th>
               </tr>
             </thead>
             <tbody>
@@ -235,7 +268,7 @@ function PlayersListPage() {
                   {renderPlayerRow(group[0], false, true)}
                   {group.length > 1 && (
                     <tr>
-                      <td colSpan="9" className="py-2 px-4 bg-gray-100">
+                      <td colSpan="10" className="py-2 px-4 bg-gray-100">
                         <button
                           onClick={() => togglePlayerExpand(group[0].id)}
                           className="text-blue-500 hover:text-blue-700 flex items-center"

@@ -5,7 +5,6 @@ import config from '../config';
 function PlayerRegister() {
   const [players, setPlayers] = useState([{ firstName: '', lastName: '' }]);
   const [useDropInPackage, setUseDropInPackage] = useState(false);
-  const [packageUses, setPackageUses] = useState(1);
   const [registrationResult, setRegistrationResult] = useState(null);
   const [showResult, setShowResult] = useState(false);
   const [showWarning, setShowWarning] = useState(false);
@@ -24,7 +23,7 @@ function PlayerRegister() {
       const response = await axios.post(`${config.apiBaseUrl}/register-players`, { 
         players,
         useDropInPackage,
-        packageUses: useDropInPackage ? packageUses : 0
+        packageUses: useDropInPackage ? 1 : 0
       });
       setRegistrationResult(response.data);
       setShowResult(true);
@@ -38,18 +37,6 @@ function PlayerRegister() {
     const updatedPlayers = [...players];
     updatedPlayers[index][field] = value;
     setPlayers(updatedPlayers);
-  };
-
-  const handlePackageUsesChange = (value) => {
-    const newPackageUses = Math.max(1, Math.min(4, value));
-    setPackageUses(newPackageUses);
-    setPlayers(prevPlayers => {
-      const newPlayers = [...prevPlayers];
-      while (newPlayers.length < newPackageUses) {
-        newPlayers.push({ firstName: '', lastName: '' });
-      }
-      return newPlayers.slice(0, newPackageUses);
-    });
   };
 
   const confirmRegistration = async () => {
@@ -94,30 +81,8 @@ function PlayerRegister() {
                   </svg>
                 )}
               </div>
-              <span className="text-xl">Do you have a drop-in package?</span>
+              <span className="text-xl">DROP-IN PACKAGE</span>
             </div>
-            {useDropInPackage && (
-              <div className="flex items-center justify-between text-lg">
-                <span className="text-xl">Number of package uses:</span>
-                <div className="flex items-center">
-                  <button
-                    type="button"
-                    onClick={() => handlePackageUsesChange(packageUses - 1)}
-                    className="bg-gray-200 text-gray-800 px-4 py-2 text-xl rounded-l"
-                  >
-                    -
-                  </button>
-                  <span className="bg-gray-100 px-6 py-2 text-xl">{packageUses}</span>
-                  <button
-                    type="button"
-                    onClick={() => handlePackageUsesChange(packageUses + 1)}
-                    className="bg-gray-200 text-gray-800 px-4 py-2 text-xl rounded-r"
-                  >
-                    +
-                  </button>
-                </div>
-              </div>
-            )}
             <button
               type="submit"
               className="w-full bg-primary text-white py-3 text-xl rounded-md hover:bg-green-600 transition duration-300"
@@ -140,7 +105,6 @@ function PlayerRegister() {
                 setShowResult(false);
                 setPlayers([{ firstName: '', lastName: '' }]);
                 setUseDropInPackage(false);
-                setPackageUses(1);
               }}
               className="w-full bg-primary text-white py-3 text-xl rounded-md hover:bg-green-600 transition duration-300"
             >
