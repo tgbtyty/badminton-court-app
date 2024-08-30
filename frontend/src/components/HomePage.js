@@ -16,7 +16,7 @@ function HomePage() {
 
   useEffect(() => {
     fetchCourts();
-    const interval = setInterval(fetchCourts, 30000); // Refresh every 30 seconds
+    const interval = setInterval(fetchCourts, 5000); // Refresh every 5 seconds
     return () => clearInterval(interval);
   }, []);
 
@@ -81,6 +81,17 @@ function HomePage() {
       fetchCourts();
     } catch (error) {
       console.error('Error locking court:', error);
+    }
+  };
+
+  const unlockCourt = async (courtId) => {
+    try {
+      await axios.post(`${config.apiBaseUrl}/courts/${courtId}/unlock`, {}, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+      });
+      fetchCourts();
+    } catch (error) {
+      console.error('Error unlocking court:', error);
     }
   };
 
@@ -153,6 +164,16 @@ function HomePage() {
                           </span></p>
                           <p className="mb-2">Active Players: {court.active_player_count}</p>
                           <p className="mb-2">Waiting Players: {court.waiting_player_count}</p>
+                          {court.active_players && court.active_players.length > 0 && (
+                            <div className="mb-2">
+                              <h4 className="font-semibold">Current Players:</h4>
+                              <ul>
+                                {court.active_players.map((player, playerIndex) => (
+                                  <li key={playerIndex}>{player.first_name} {player.last_name}</li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
                           {court.locks && court.locks.length > 0 && (
                             <div className="mb-2">
                               <h4 className="font-semibold">Scheduled Locks:</h4>
@@ -171,12 +192,22 @@ function HomePage() {
                               </ul>
                             </div>
                           )}
-                          <button
-                            onClick={() => openLockModal(court)}
-                            className="bg-primary text-white px-4 py-2 rounded hover:bg-green-600 transition duration-300"
-                          >
-                            Lock Court
-                          </button>
+                          <div className="flex space-x-2">
+                            <button
+                              onClick={() => openLockModal(court)}
+                              className="bg-primary text-white px-4 py-2 rounded hover:bg-green-600 transition duration-300"
+                            >
+                              Lock Court
+                            </button>
+                            {court.is_locked && (
+                              <button
+                                onClick={() => unlockCourt(court.id)}
+                                className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition duration-300"
+                              >
+                                Unlock Court
+                              </button>
+                            )}
+                          </div>
                         </div>
                       )}
                     </Draggable>
