@@ -435,7 +435,7 @@ app.post('/api/courts/:id/unlock', authenticateToken, async (req, res) => {
   }
 });
 
-const zodiacAnimals = ['rat', 'ox', 'tiger', 'rabbit', 'dragon', 'snake', 'horse', 'goat', 'monkey', 'rooster', 'dog', 'pig'];
+const zodiacAnimals = ['Rat', 'Ox', 'Tiger', 'Rabbit', 'Dragon', 'Snake', 'Horse', 'Goat', 'Monkey', 'Rooster', 'Dog', 'Pig'];
 
 // Register a player
 app.post('/api/register-player', async (req, res) => {
