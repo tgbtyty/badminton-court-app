@@ -356,20 +356,31 @@ async function rotatePlayers(courtId) {
 setInterval(checkAndRotatePlayers, 6000);
 
 
-// Get all courts (with basic info)
+// Get all courts (with locks and player counts)
 app.get('/api/courts', authenticateToken, async (req, res) => {
   try {
-    const courts = await pool.query('SELECT * FROM courts');
-    const courtsWithPlayerCounts = await Promise.all(courts.rows.map(async (court) => {
+    const courtsResult = await pool.query('SELECT * FROM courts');
+    const courts = await Promise.all(courtsResult.rows.map(async (court) => {
+      // Get locks
+      const locksResult = await pool.query(
+        'SELECT * FROM scheduled_locks WHERE court_id = $1 ORDER BY start_time',
+        [court.id]
+      );
+      
+      // Get active player count
       const activePlayers = await pool.query('SELECT COUNT(*) FROM active_players WHERE court_id = $1', [court.id]);
+      
+      // Get waiting player count
       const waitingPlayers = await pool.query('SELECT COUNT(*) FROM waiting_players WHERE court_id = $1', [court.id]);
+
       return {
         ...court,
+        locks: locksResult.rows,
         active_player_count: parseInt(activePlayers.rows[0].count),
         waiting_player_count: parseInt(waitingPlayers.rows[0].count)
       };
     }));
-    res.json(courtsWithPlayerCounts);
+    res.json(courts);
   } catch (error) {
     console.error('Error fetching courts:', error);
     res.status(500).json({ message: 'Error fetching courts' });
@@ -404,24 +415,57 @@ app.delete('/api/courts/:id', authenticateToken, async (req, res) => {
 app.post('/api/courts/:id/lock', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
-    const { startTime, duration } = req.body;
+    const { startTime, duration, reason } = req.body;
 
     const startDateTime = new Date(startTime);
-    const unlockTime = new Date(startDateTime.getTime() + duration * 60000);
+    const endDateTime = new Date(startDateTime.getTime() + duration * 60000);
 
-    const result = await pool.query(
-      'UPDATE courts SET is_locked = true, unlock_time = $1 WHERE id = $2 RETURNING *',
-      [unlockTime, id]
+    // Insert the lock into scheduled_locks
+    const lockResult = await pool.query(
+      'INSERT INTO scheduled_locks (court_id, start_time, end_time, reason) VALUES ($1, $2, $3, $4) RETURNING *',
+      [id, startDateTime, endDateTime, reason]
     );
 
-    if (result.rows.length === 0) {
-      return res.status(404).json({ message: 'Court not found' });
-    }
+    // Update the court's is_locked status
+    await pool.query('UPDATE courts SET is_locked = true WHERE id = $1', [id]);
 
-    res.json(result.rows[0]);
+    res.json(lockResult.rows[0]);
   } catch (error) {
     console.error('Error locking court:', error);
     res.status(500).json({ message: 'Error locking court', error: error.message });
+  }
+});
+
+// Remove a lock
+app.delete('/api/courts/:courtId/lock/:lockId', authenticateToken, async (req, res) => {
+  try {
+    const { courtId, lockId } = req.params;
+    
+    // Remove the lock
+    const result = await pool.query(
+      'DELETE FROM scheduled_locks WHERE id = $1 AND court_id = $2 RETURNING *',
+      [lockId, courtId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: 'Lock not found' });
+    }
+
+    // Check if there are any remaining locks for this court
+    const remainingLocks = await pool.query(
+      'SELECT * FROM scheduled_locks WHERE court_id = $1',
+      [courtId]
+    );
+
+    // If no locks remain, update the court's is_locked status
+    if (remainingLocks.rows.length === 0) {
+      await pool.query('UPDATE courts SET is_locked = false WHERE id = $1', [courtId]);
+    }
+
+    res.json({ message: 'Lock removed successfully' });
+  } catch (error) {
+    console.error('Error removing lock:', error);
+    res.status(500).json({ message: 'Error removing lock', error: error.message });
   }
 });
 
