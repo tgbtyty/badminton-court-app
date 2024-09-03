@@ -26,20 +26,7 @@ function HomePage() {
     });
   }, [courts]);
 
-  useEffect(() => {
-    fetchCourts();
-    const interval = setInterval(fetchCourts, 5000); // Refresh every 5 seconds
-    return () => clearInterval(interval);
-  }, []);
 
-  useEffect(() => {
-    fetchCourts();
-    const interval = setInterval(() => {
-      fetchCourts();
-      checkAndUnlockCourts();
-    }, 5000); // Refresh and check locks every 5 seconds
-    return () => clearInterval(interval);
-  }, [fetchCourts, checkAndUnlockCourts]);
 
   const fetchCourts = useCallback(async () => {
     try {
@@ -161,6 +148,21 @@ function HomePage() {
       minute: '2-digit'
     });
   };
+
+  useEffect(() => {
+    fetchCourts();
+    const interval = setInterval(fetchCourts, 5000); // Refresh every 5 seconds
+    return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    fetchCourts();
+    const interval = setInterval(() => {
+      fetchCourts();
+      checkAndUnlockCourts();
+    }, 5000); // Refresh and check locks every 5 seconds
+    return () => clearInterval(interval);
+  }, [fetchCourts, checkAndUnlockCourts]);
 
   return (
     <div className="min-h-screen bg-gray-100 relative">
