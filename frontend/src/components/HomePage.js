@@ -20,6 +20,15 @@ function HomePage() {
     return () => clearInterval(interval);
   }, []);
 
+  useEffect(() => {
+    fetchCourts();
+    const interval = setInterval(() => {
+      fetchCourts();
+      checkAndUnlockCourts();
+    }, 5000); // Refresh and check locks every 5 seconds
+    return () => clearInterval(interval);
+  }, []);
+
   const fetchCourts = async () => {
     try {
       const response = await axios.get(`${config.apiBaseUrl}/courts`, {
@@ -65,14 +74,14 @@ function HomePage() {
 
   const lockCourt = async () => {
     try {
-      const today = new Date().toISOString().split('T')[0];
-      const startDateTime = new Date(`${today}T${lockStartTime}`);
+      const startDateTime = new Date(`${lockStartTime}`);
       const [hours, minutes] = lockDuration.split(':').map(Number);
       const durationInMinutes = hours * 60 + minutes;
+      const endDateTime = new Date(startDateTime.getTime() + durationInMinutes * 60000);
 
       await axios.post(`${config.apiBaseUrl}/courts/${selectedCourt.id}/lock`, {
         startTime: startDateTime.toISOString(),
-        duration: durationInMinutes,
+        endTime: endDateTime.toISOString(),
         reason: lockReason
       }, {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
@@ -93,6 +102,18 @@ function HomePage() {
     } catch (error) {
       console.error('Error unlocking court:', error);
     }
+  };
+
+  const checkAndUnlockCourts = async () => {
+    const now = new Date();
+    courts.forEach(async (court) => {
+      if (court.locks && court.locks.length > 0) {
+        const activeLocks = court.locks.filter(lock => new Date(lock.end_time) > now);
+        if (activeLocks.length === 0 && court.is_locked) {
+          await unlockCourt(court.id);
+        }
+      }
+    });
   };
 
   const removeLock = async (courtId, lockId) => {
@@ -123,9 +144,21 @@ function HomePage() {
     setCourts(items);
   };
 
+  //bloated function
   const formatTime = (dateString) => {
     const date = new Date(dateString);
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  };
+
+  const formatDateTime = (dateString) => {
+    const date = new Date(dateString);
+    return date.toLocaleString([], { 
+      year: 'numeric', 
+      month: 'numeric', 
+      day: 'numeric', 
+      hour: '2-digit', 
+      minute: '2-digit'
+    });
   };
 
   return (
@@ -179,8 +212,12 @@ function HomePage() {
                               <h4 className="font-semibold">Scheduled Locks:</h4>
                               <ul>
                                 {court.locks.map((lock) => (
-                                  <li key={lock.id} className="flex justify-between items-center">
-                                    <span>{formatTime(lock.start_time)} - {formatTime(lock.end_time)}: {lock.reason}</span>
+                                  <li key={lock.id} className="flex justify-between items-center mb-2">
+                                    <span>
+                                      {formatDateTime(lock.start_time)} - {formatDateTime(lock.end_time)}
+                                      <br />
+                                      Reason: {lock.reason}
+                                    </span>
                                     <button
                                       onClick={() => removeLock(court.id, lock.id)}
                                       className="text-red-500 hover:text-red-700"
