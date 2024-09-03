@@ -14,7 +14,7 @@ function HomePage() {
   const [lockReason, setLockReason] = useState('');
   const [showColorPicker, setShowColorPicker] = useState(false);
 
-  const checkAndUnlockCourts = async () => {
+  const checkAndUnlockCourts = useCallback(async () => {
     const now = new Date();
     courts.forEach(async (court) => {
       if (court.locks && court.locks.length > 0) {
@@ -24,7 +24,7 @@ function HomePage() {
         }
       }
     });
-  };
+  }, [courts]);
 
   useEffect(() => {
     fetchCourts();
@@ -39,9 +39,9 @@ function HomePage() {
       checkAndUnlockCourts();
     }, 5000); // Refresh and check locks every 5 seconds
     return () => clearInterval(interval);
-  }, []);
+  }, [fetchCourts, checkAndUnlockCourts]);
 
-  const fetchCourts = async () => {
+  const fetchCourts = useCallback(async () => {
     try {
       const response = await axios.get(`${config.apiBaseUrl}/courts`, {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
@@ -50,7 +50,7 @@ function HomePage() {
     } catch (error) {
       console.error('Error fetching courts:', error);
     }
-  };
+  }, []);
 
   const addCourt = async () => {
     try {
@@ -86,7 +86,8 @@ function HomePage() {
 
   const lockCourt = async () => {
     try {
-      const startDateTime = new Date(`${lockStartTime}`);
+      const today = new Date().toISOString().split('T')[0];
+      const startDateTime = new Date(`${today}T${lockStartTime}`);
       const [hours, minutes] = lockDuration.split(':').map(Number);
       const durationInMinutes = hours * 60 + minutes;
       const endDateTime = new Date(startDateTime.getTime() + durationInMinutes * 60000);
@@ -115,8 +116,6 @@ function HomePage() {
       console.error('Error unlocking court:', error);
     }
   };
-
-
 
   const removeLock = async (courtId, lockId) => {
     try {
