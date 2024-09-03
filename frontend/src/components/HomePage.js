@@ -14,6 +14,18 @@ function HomePage() {
   const [lockReason, setLockReason] = useState('');
   const [showColorPicker, setShowColorPicker] = useState(false);
 
+  const checkAndUnlockCourts = async () => {
+    const now = new Date();
+    courts.forEach(async (court) => {
+      if (court.locks && court.locks.length > 0) {
+        const activeLocks = court.locks.filter(lock => new Date(lock.end_time) > now);
+        if (activeLocks.length === 0 && court.is_locked) {
+          await unlockCourt(court.id);
+        }
+      }
+    });
+  };
+
   useEffect(() => {
     fetchCourts();
     const interval = setInterval(fetchCourts, 5000); // Refresh every 5 seconds
@@ -104,17 +116,7 @@ function HomePage() {
     }
   };
 
-  const checkAndUnlockCourts = async () => {
-    const now = new Date();
-    courts.forEach(async (court) => {
-      if (court.locks && court.locks.length > 0) {
-        const activeLocks = court.locks.filter(lock => new Date(lock.end_time) > now);
-        if (activeLocks.length === 0 && court.is_locked) {
-          await unlockCourt(court.id);
-        }
-      }
-    });
-  };
+
 
   const removeLock = async (courtId, lockId) => {
     try {
