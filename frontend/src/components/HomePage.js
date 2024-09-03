@@ -91,6 +91,10 @@ function HomePage() {
 
   const lockCourt = async () => {
     try {
+      if (!lockStartTime || !lockDuration || !lockReason) {
+        throw new Error('Please fill in all fields');
+      }
+  
       const today = new Date().toISOString().split('T')[0];
       const startDateTime = new Date(`${today}T${lockStartTime}`);
       
@@ -105,6 +109,12 @@ function HomePage() {
   
       const durationInMinutes = hours * 60 + minutes;
       const endDateTime = new Date(startDateTime.getTime() + durationInMinutes * 60000);
+  
+      console.log('Sending lock request:', {
+        startTime: startDateTime.toISOString(),
+        endTime: endDateTime.toISOString(),
+        reason: lockReason
+      });
   
       const response = await axios.post(`${config.apiBaseUrl}/courts/${selectedCourt.id}/lock`, {
         startTime: startDateTime.toISOString(),
@@ -122,7 +132,7 @@ function HomePage() {
       if (error.response) {
         console.error('Error response:', error.response.data);
       }
-      alert('Failed to lock court. Please ensure all fields are filled correctly.');
+      alert(error.message || 'Failed to lock court. Please try again.');
     }
   };
 

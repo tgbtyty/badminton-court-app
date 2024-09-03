@@ -430,10 +430,14 @@ app.post('/api/courts/:id/lock', authenticateToken, async (req, res) => {
       return res.status(400).json({ message: 'Invalid date/time format' });
     }
 
+    // Format dates for PostgreSQL
+    const formattedStartTime = startDateTime.toISOString();
+    const formattedEndTime = endDateTime.toISOString();
+
     // Insert the lock into scheduled_locks
     const lockResult = await pool.query(
       'INSERT INTO scheduled_locks (court_id, start_time, end_time, reason) VALUES ($1, $2, $3, $4) RETURNING *',
-      [id, startDateTime, endDateTime, reason]
+      [id, formattedStartTime, formattedEndTime, reason]
     );
 
     // Update the court's is_locked status
