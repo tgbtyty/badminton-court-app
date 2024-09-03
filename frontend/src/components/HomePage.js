@@ -14,20 +14,6 @@ function HomePage() {
   const [lockReason, setLockReason] = useState('');
   const [showColorPicker, setShowColorPicker] = useState(false);
 
-  const checkAndUnlockCourts = useCallback(async () => {
-    const now = new Date();
-    courts.forEach(async (court) => {
-      if (court.locks && court.locks.length > 0) {
-        const activeLocks = court.locks.filter(lock => new Date(lock.end_time) > now);
-        if (activeLocks.length === 0 && court.is_locked) {
-          await unlockCourt(court.id);
-        }
-      }
-    });
-  }, [courts]);
-
-
-
   const fetchCourts = useCallback(async () => {
     try {
       const response = await axios.get(`${config.apiBaseUrl}/courts`, {
@@ -38,6 +24,38 @@ function HomePage() {
       console.error('Error fetching courts:', error);
     }
   }, []);
+
+  const unlockCourt = useCallback(async (courtId) => {
+    try {
+      await axios.post(`${config.apiBaseUrl}/courts/${courtId}/unlock`, {}, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+      });
+      fetchCourts();
+    } catch (error) {
+      console.error('Error unlocking court:', error);
+    }
+  }, [fetchCourts]);
+
+  const checkAndUnlockCourts = useCallback(async () => {
+    const now = new Date();
+    courts.forEach(async (court) => {
+      if (court.locks && court.locks.length > 0) {
+        const activeLocks = court.locks.filter(lock => new Date(lock.end_time) > now);
+        if (activeLocks.length === 0 && court.is_locked) {
+          await unlockCourt(court.id);
+        }
+      }
+    });
+  }, [courts, unlockCourt]);
+
+  useEffect(() => {
+    fetchCourts();
+    const interval = setInterval(() => {
+      fetchCourts();
+      checkAndUnlockCourts();
+    }, 5000); // Refresh and check locks every 5 seconds
+    return () => clearInterval(interval);
+  }, [fetchCourts, checkAndUnlockCourts]);
 
   const addCourt = async () => {
     try {
@@ -79,28 +97,23 @@ function HomePage() {
       const durationInMinutes = hours * 60 + minutes;
       const endDateTime = new Date(startDateTime.getTime() + durationInMinutes * 60000);
 
-      await axios.post(`${config.apiBaseUrl}/courts/${selectedCourt.id}/lock`, {
+      const response = await axios.post(`${config.apiBaseUrl}/courts/${selectedCourt.id}/lock`, {
         startTime: startDateTime.toISOString(),
         endTime: endDateTime.toISOString(),
         reason: lockReason
       }, {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
       });
+      
+      console.log('Lock court response:', response.data);
       setShowLockModal(false);
       fetchCourts();
     } catch (error) {
       console.error('Error locking court:', error);
-    }
-  };
-
-  const unlockCourt = async (courtId) => {
-    try {
-      await axios.post(`${config.apiBaseUrl}/courts/${courtId}/unlock`, {}, {
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
-      });
-      fetchCourts();
-    } catch (error) {
-      console.error('Error unlocking court:', error);
+      if (error.response) {
+        console.error('Error response:', error.response.data);
+      }
+      alert('Failed to lock court. Please try again.');
     }
   };
 
@@ -132,12 +145,6 @@ function HomePage() {
     setCourts(items);
   };
 
-  //bloated function
-  const formatTime = (dateString) => {
-    const date = new Date(dateString);
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  };
-
   const formatDateTime = (dateString) => {
     const date = new Date(dateString);
     return date.toLocaleString([], { 
@@ -149,20 +156,6 @@ function HomePage() {
     });
   };
 
-  useEffect(() => {
-    fetchCourts();
-    const interval = setInterval(fetchCourts, 5000); // Refresh every 5 seconds
-    return () => clearInterval(interval);
-  }, []);
-
-  useEffect(() => {
-    fetchCourts();
-    const interval = setInterval(() => {
-      fetchCourts();
-      checkAndUnlockCourts();
-    }, 5000); // Refresh and check locks every 5 seconds
-    return () => clearInterval(interval);
-  }, [fetchCourts, checkAndUnlockCourts]);
 
   return (
     <div className="min-h-screen bg-gray-100 relative">
