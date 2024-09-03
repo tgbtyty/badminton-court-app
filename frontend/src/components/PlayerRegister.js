@@ -13,6 +13,10 @@ function PlayerRegister() {
   const [showTimeoutWarning, setShowTimeoutWarning] = useState(false);
   const [timeoutCounter, setTimeoutCounter] = useState(5);
 
+  const timeoutIdRef = useRef(null);
+  const warningTimeoutIdRef = useRef(null);
+  const countdownIdRef = useRef(null);
+
   const resetToStart = useCallback(() => {
     setStep('start');
     setHasPackage(false);
@@ -25,35 +29,36 @@ function PlayerRegister() {
   const resetTimeout = useCallback(() => {
     setShowTimeoutWarning(false);
     setTimeoutCounter(5);
-  }, []);
+    clearTimeout(timeoutIdRef.current);
+    clearTimeout(warningTimeoutIdRef.current);
+    clearInterval(countdownIdRef.current);
+
+    timeoutIdRef.current = setTimeout(() => {
+      setShowTimeoutWarning(true);
+      warningTimeoutIdRef.current = setTimeout(resetToStart, WARNING_DURATION);
+      countdownIdRef.current = setInterval(() => {
+        setTimeoutCounter((prev) => {
+          if (prev <= 1) {
+            clearInterval(countdownIdRef.current);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }, TIMEOUT_DURATION);
+  }, [resetToStart]);
 
   useEffect(() => {
-    let timeoutId;
-    let warningTimeoutId;
-    let countdownId;
-
     if (step !== 'start' && step !== 'result') {
-      timeoutId = setTimeout(() => {
-        setShowTimeoutWarning(true);
-        warningTimeoutId = setTimeout(resetToStart, WARNING_DURATION);
-        countdownId = setInterval(() => {
-          setTimeoutCounter((prev) => {
-            if (prev <= 1) {
-              clearInterval(countdownId);
-              return 0;
-            }
-            return prev - 1;
-          });
-        }, 1000);
-      }, TIMEOUT_DURATION);
+      resetTimeout();
     }
 
     return () => {
-      clearTimeout(timeoutId);
-      clearTimeout(warningTimeoutId);
-      clearInterval(countdownId);
+      clearTimeout(timeoutIdRef.current);
+      clearTimeout(warningTimeoutIdRef.current);
+      clearInterval(countdownIdRef.current);
     };
-  }, [step, player, resetToStart]);
+  }, [step, resetTimeout]);
 
   const handleInputChange = (e) => {
     setPlayer({ ...player, [e.target.name]: e.target.value });
