@@ -49,6 +49,16 @@ function PlayerRegister() {
   }, [resetToStart]);
 
   useEffect(() => {
+    let redirectTimer;
+    if (step === 'result') {
+      redirectTimer = setTimeout(() => {
+        resetToStart();
+      }, 5000);
+    }
+    return () => clearTimeout(redirectTimer);
+  }, [step, resetToStart]);
+
+  useEffect(() => {
     if (step !== 'start' && step !== 'result') {
       resetTimeout();
     }
@@ -155,23 +165,22 @@ function PlayerRegister() {
             <button onClick={() => { setStep('start'); resetTimeout(); }} className="w-full bg-primary text-white py-3 text-xl rounded-md hover:bg-green-600 transition duration-300">Back to Start</button>
           </div>
         );
-      case 'result':
-        return (
-          <div className="text-center">
-            <h3 className="text-2xl font-semibold mb-4 text-gray-800">Registration Successful!</h3>
-            {registrationResult.players.map((player, index) => (
-              <div key={index} className="mb-4">
-                <p className="mb-1"><span className="font-semibold">Username:</span> {player.username}</p>
-                <p className="mb-1"><span className="font-semibold">Temporary Password:</span> {player.tempPassword}</p>
-              </div>
-            ))}
-            <button
-              onClick={resetToStart}
-              className="w-full bg-primary text-white py-3 text-xl rounded-md hover:bg-green-600 transition duration-300"
-            >
-              Register More Players
-            </button>
-          </div>
+        case 'result':
+          return (
+            <div className="text-center">
+              <h3 className="text-2xl font-semibold mb-4 text-gray-800">Registration Successful!</h3>
+              {registrationResult.players.map((player, index) => (
+                <div key={index} className="mb-8">
+                  <p className="mb-2 text-3xl font-bold">
+                    <span className="text-primary">Username:</span> {player.username}
+                  </p>
+                  <p className="mb-2 text-3xl font-bold">
+                    <span className="text-primary">Temporary Password:</span> {player.tempPassword}
+                  </p>
+                </div>
+              ))}
+              <p className="text-lg text-gray-600">Returning to start in 5 seconds...</p>
+            </div>
         );
       default:
         return null;
