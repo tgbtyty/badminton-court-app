@@ -415,10 +415,20 @@ app.delete('/api/courts/:id', authenticateToken, async (req, res) => {
 app.post('/api/courts/:id/lock', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
-    const { startTime, duration, reason } = req.body;
+    const { startTime, endTime, reason } = req.body;
+
+    console.log('Received lock request:', { startTime, endTime, reason });
+
+    if (!startTime || !endTime || !reason) {
+      return res.status(400).json({ message: 'Missing required fields' });
+    }
 
     const startDateTime = new Date(startTime);
-    const endDateTime = new Date(startDateTime.getTime() + duration * 60000);
+    const endDateTime = new Date(endTime);
+
+    if (isNaN(startDateTime.getTime()) || isNaN(endDateTime.getTime())) {
+      return res.status(400).json({ message: 'Invalid date/time format' });
+    }
 
     // Insert the lock into scheduled_locks
     const lockResult = await pool.query(
