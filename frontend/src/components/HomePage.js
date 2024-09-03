@@ -93,10 +93,19 @@ function HomePage() {
     try {
       const today = new Date().toISOString().split('T')[0];
       const startDateTime = new Date(`${today}T${lockStartTime}`);
+      
+      if (isNaN(startDateTime.getTime())) {
+        throw new Error('Invalid start time');
+      }
+  
       const [hours, minutes] = lockDuration.split(':').map(Number);
+      if (isNaN(hours) || isNaN(minutes)) {
+        throw new Error('Invalid duration');
+      }
+  
       const durationInMinutes = hours * 60 + minutes;
       const endDateTime = new Date(startDateTime.getTime() + durationInMinutes * 60000);
-
+  
       const response = await axios.post(`${config.apiBaseUrl}/courts/${selectedCourt.id}/lock`, {
         startTime: startDateTime.toISOString(),
         endTime: endDateTime.toISOString(),
@@ -113,7 +122,7 @@ function HomePage() {
       if (error.response) {
         console.error('Error response:', error.response.data);
       }
-      alert('Failed to lock court. Please try again.');
+      alert('Failed to lock court. Please ensure all fields are filled correctly.');
     }
   };
 
