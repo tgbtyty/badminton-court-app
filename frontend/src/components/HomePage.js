@@ -79,7 +79,7 @@ function HomePage() {
         setCourts(prevCourts => prevCourts.filter(court => court.id !== courtId));
         toast.success('Court removed successfully');
       } else {
-        throw new Error('Failed to remove court');
+        throw new Error(response.data.message || 'Failed to remove court');
       }
     } catch (error) {
       console.error('Error removing court:', error);

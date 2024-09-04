@@ -408,13 +408,31 @@ app.post('/api/courts', authenticateToken, async (req, res) => {
 
 // Remove a court
 app.delete('/api/courts/:id', authenticateToken, async (req, res) => {
+  const client = await pool.connect();
   try {
+    await client.query('BEGIN');
+
     const { id } = req.params;
-    await pool.query('DELETE FROM courts WHERE id = $1', [id]);
-    res.status(200).json({ message: 'Court removed successfully' });
+
+    // First, delete all scheduled locks for this court
+    await client.query('DELETE FROM scheduled_locks WHERE court_id = $1', [id]);
+
+    // Then, delete the court
+    const result = await client.query('DELETE FROM courts WHERE id = $1 RETURNING *', [id]);
+
+    if (result.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ message: 'Court not found' });
+    }
+
+    await client.query('COMMIT');
+    res.status(200).json({ message: 'Court removed successfully', court: result.rows[0] });
   } catch (error) {
+    await client.query('ROLLBACK');
     console.error('Error removing court:', error);
-    res.status(500).json({ message: 'Error removing court' });
+    res.status(500).json({ message: 'Error removing court', error: error.message });
+  } finally {
+    client.release();
   }
 });
 
