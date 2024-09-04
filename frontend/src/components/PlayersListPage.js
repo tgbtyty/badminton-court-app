@@ -14,6 +14,10 @@ function PlayersListPage() {
   const [showArchiveModal, setShowArchiveModal] = useState(false);
   const [archivedPlayers, setArchivedPlayers] = useState([]);
   const [showArchivedPlayers, setShowArchivedPlayers] = useState(false);
+  const [startDate, setStartDate] = useState(null);
+  const [endDate, setEndDate] = useState(null);
+  const [archivedSortColumn, setArchivedSortColumn] = useState('');
+  const [archivedSortDirection, setArchivedSortDirection] = useState('asc');
 
   useEffect(() => {
     fetchPlayers();
@@ -246,6 +250,38 @@ function PlayersListPage() {
     </tr>
   );
 
+  const handleArchivedSort = (column) => {
+    if (column === archivedSortColumn) {
+      setArchivedSortDirection(archivedSortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setArchivedSortColumn(column);
+      setArchivedSortDirection('asc');
+    }
+  };
+
+  const filterAndSortArchivedPlayers = () => {
+    return archivedPlayers
+      .filter(player => {
+        if (!startDate && !endDate) return true;
+        const playerDate = new Date(player.archived_at);
+        if (startDate && endDate) {
+          return playerDate >= startDate && playerDate <= endDate;
+        } else if (startDate) {
+          return playerDate >= startDate;
+        } else if (endDate) {
+          return playerDate <= endDate;
+        }
+        return true;
+      })
+      .sort((a, b) => {
+        if (archivedSortColumn) {
+          if (a[archivedSortColumn] < b[archivedSortColumn]) return archivedSortDirection === 'asc' ? -1 : 1;
+          if (a[archivedSortColumn] > b[archivedSortColumn]) return archivedSortDirection === 'asc' ? 1 : -1;
+        }
+        return 0;
+      });
+  };  
+
   return (
     <div className="min-h-screen bg-gray-100">
       <header className="bg-primary text-white p-4">
@@ -335,36 +371,78 @@ function PlayersListPage() {
         </div>
         
         {showArchivedPlayers && (
-          <div className="mt-8">
-            <h2 className="text-2xl font-bold mb-4">Archived Players</h2>
-            <table className="min-w-full bg-white shadow-md rounded-lg overflow-hidden">
-              <thead className="bg-gray-200">
-                <tr>
-                  <th className="py-3 px-4 text-left">First Name</th>
-                  <th className="py-3 px-4 text-left">Last Name</th>
-                  <th className="py-3 px-4 text-left">Username</th>
-                  <th className="py-3 px-4 text-left">Package Uses</th>
-                  <th className="py-3 px-4 text-left">Archived At</th>
-                  <th className="py-3 px-4 text-left">Reason</th>
-                  <th className="py-3 px-4 text-left">Notes</th>
-                </tr>
-              </thead>
-              <tbody>
-                {archivedPlayers.map((player) => (
-                  <tr key={player.id} className="border-t">
-                    <td className="py-3 px-4">{player.first_name}</td>
-                    <td className="py-3 px-4">{player.last_name}</td>
-                    <td className="py-3 px-4">{player.username}</td>
-                    <td className="py-3 px-4">{player.package_uses}</td>
-                    <td className="py-3 px-4">{new Date(player.archived_at).toLocaleString()}</td>
-                    <td className="py-3 px-4">{player.archive_reason}</td>
-                    <td className="py-3 px-4">{player.note}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+      <div className="mt-8">
+        <h2 className="text-2xl font-bold mb-4">Archived Players</h2>
+        <div className="mb-4 flex items-center">
+          <DatePicker
+            selected={startDate}
+            onChange={date => setStartDate(date)}
+            selectsStart
+            startDate={startDate}
+            endDate={endDate}
+            placeholderText="Start Date"
+            className="mr-2 p-2 border rounded"
+          />
+          <DatePicker
+            selected={endDate}
+            onChange={date => setEndDate(date)}
+            selectsEnd
+            startDate={startDate}
+            endDate={endDate}
+            minDate={startDate}
+            placeholderText="End Date"
+            className="p-2 border rounded"
+          />
+        </div>
+        <table className="min-w-full bg-white shadow-md rounded-lg overflow-hidden">
+          <thead className="bg-gray-200">
+            <tr>
+              <th className="py-3 px-4 text-left">
+                <button onClick={() => handleArchivedSort('first_name')} className="font-semibold">
+                  First Name {archivedSortColumn === 'first_name' && (archivedSortDirection === 'asc' ? '▲' : '▼')}
+                </button>
+              </th>
+              <th className="py-3 px-4 text-left">
+                <button onClick={() => handleArchivedSort('last_name')} className="font-semibold">
+                  Last Name {archivedSortColumn === 'last_name' && (archivedSortDirection === 'asc' ? '▲' : '▼')}
+                </button>
+              </th>
+              <th className="py-3 px-4 text-left">
+                <button onClick={() => handleArchivedSort('username')} className="font-semibold">
+                  Username {archivedSortColumn === 'username' && (archivedSortDirection === 'asc' ? '▲' : '▼')}
+                </button>
+              </th>
+              <th className="py-3 px-4 text-left">
+                <button onClick={() => handleArchivedSort('package_uses')} className="font-semibold">
+                  Package Uses {archivedSortColumn === 'package_uses' && (archivedSortDirection === 'asc' ? '▲' : '▼')}
+                </button>
+              </th>
+              <th className="py-3 px-4 text-left">
+                <button onClick={() => handleArchivedSort('archived_at')} className="font-semibold">
+                  Archived At {archivedSortColumn === 'archived_at' && (archivedSortDirection === 'asc' ? '▲' : '▼')}
+                </button>
+              </th>
+              <th className="py-3 px-4 text-left">Reason</th>
+              <th className="py-3 px-4 text-left">Notes</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filterAndSortArchivedPlayers().map((player) => (
+              <tr key={player.id} className="border-t">
+                <td className="py-3 px-4">{player.first_name}</td>
+                <td className="py-3 px-4">{player.last_name}</td>
+                <td className="py-3 px-4">{player.username}</td>
+                <td className="py-3 px-4">{player.package_uses}</td>
+                <td className="py-3 px-4">{new Date(player.archived_at).toLocaleString()}</td>
+                <td className="py-3 px-4">{player.archive_reason}</td>
+                <td className="py-3 px-4">{player.note}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    )}
+
       </main>
       
       {showArchiveModal && (
