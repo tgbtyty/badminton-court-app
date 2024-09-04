@@ -771,5 +771,53 @@ app.post('/api/players/:id/note', authenticateToken, async (req, res) => {
   }
 });
 
+// Archive all players
+app.post('/api/players/archive', authenticateToken, async (req, res) => {
+  try {
+    const { password, reason } = req.body;
+    
+    // Verify password
+    const user = await pool.query('SELECT * FROM users WHERE id = $1', [req.user.id]);
+    const validPassword = await bcrypt.compare(password, user.rows[0].password);
+    if (!validPassword) {
+      return res.status(400).json({ message: 'Invalid password' });
+    }
+
+    // Get all current players
+    const players = await pool.query('SELECT * FROM users WHERE user_type = $1', ['player']);
+
+    // Insert players into archived_players table
+    for (const player of players.rows) {
+      await pool.query(`
+        INSERT INTO archived_players 
+        (original_id, username, first_name, last_name, temp_password, use_drop_in_package, 
+        package_uses, created_at, is_marked, is_flagged, note, archive_reason)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+      `, [player.id, player.username, player.first_name, player.last_name, player.temp_password,
+          player.use_drop_in_package, player.package_uses, player.created_at, player.is_marked,
+          player.is_flagged, player.note, reason]);
+    }
+
+    // Clear all current players
+    await pool.query('DELETE FROM users WHERE user_type = $1', ['player']);
+
+    res.json({ message: 'All players archived successfully' });
+  } catch (error) {
+    console.error('Error archiving players:', error);
+    res.status(500).json({ message: 'Error archiving players' });
+  }
+});
+
+// Get archived players
+app.get('/api/players/archived', authenticateToken, async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM archived_players ORDER BY archived_at DESC');
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error fetching archived players:', error);
+    res.status(500).json({ message: 'Error fetching archived players' });
+  }
+});
+
 
 startServer();

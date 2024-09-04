@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Link } from 'react-router-dom';
 import config from '../config';
+import ArchiveConfirmationModal from './ArchiveConfirmationModal';
 
 function PlayersListPage() {
   const [players, setPlayers] = useState([]);
@@ -10,6 +11,9 @@ function PlayersListPage() {
   const [sortDirection, setSortDirection] = useState('asc');
   const [expandedPlayers, setExpandedPlayers] = useState({});
   const [playerNotes, setPlayerNotes] = useState({});
+  const [showArchiveModal, setShowArchiveModal] = useState(false);
+  const [archivedPlayers, setArchivedPlayers] = useState([]);
+  const [showArchivedPlayers, setShowArchivedPlayers] = useState(false);
 
   useEffect(() => {
     fetchPlayers();
@@ -112,6 +116,31 @@ function PlayersListPage() {
       setPlayerNotes(prev => ({ ...prev, [playerId]: note }));
     } catch (error) {
       console.error('Error updating note:', error);
+    }
+  };
+
+  const archivePlayers = async (password, reason) => {
+    try {
+      await axios.post(`${config.apiBaseUrl}/players/archive`, { password, reason }, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+      });
+      fetchPlayers();
+      setShowArchiveModal(false);
+      alert('All players have been archived successfully.');
+    } catch (error) {
+      console.error('Error archiving players:', error);
+      alert('Failed to archive players. Please try again.');
+    }
+  };
+
+  const fetchArchivedPlayers = async () => {
+    try {
+      const response = await axios.get(`${config.apiBaseUrl}/players/archived`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+      });
+      setArchivedPlayers(response.data);
+    } catch (error) {
+      console.error('Error fetching archived players:', error);
     }
   };
 
@@ -230,12 +259,29 @@ function PlayersListPage() {
           <div className="text-lg font-semibold">
             Total Players: {players.length}
           </div>
-          <button
-            onClick={clearAllPlayers}
-            className="bg-red-500 text-white px-6 py-2 rounded hover:bg-red-600 transition duration-300"
-          >
-            CLEAR ALL PLAYERS
-          </button>
+          <div>
+            <button
+              onClick={clearAllPlayers}
+              className="bg-red-500 text-white px-6 py-2 rounded hover:bg-red-600 transition duration-300 mr-2"
+            >
+              CLEAR ALL PLAYERS
+            </button>
+            <button
+              onClick={() => setShowArchiveModal(true)}
+              className="bg-yellow-500 text-white px-6 py-2 rounded hover:bg-yellow-600 transition duration-300 mr-2"
+            >
+              Clear All Players - Start New Page
+            </button>
+            <button
+              onClick={() => {
+                setShowArchivedPlayers(!showArchivedPlayers);
+                if (!showArchivedPlayers) fetchArchivedPlayers();
+              }}
+              className="bg-blue-500 text-white px-6 py-2 rounded hover:bg-blue-600 transition duration-300"
+            >
+              {showArchivedPlayers ? 'Hide History' : 'Show History'}
+            </button>
+          </div>
         </div>
         <div className="mb-4">
           <input
@@ -287,7 +333,46 @@ function PlayersListPage() {
             </tbody>
           </table>
         </div>
+        
+        {showArchivedPlayers && (
+          <div className="mt-8">
+            <h2 className="text-2xl font-bold mb-4">Archived Players</h2>
+            <table className="min-w-full bg-white shadow-md rounded-lg overflow-hidden">
+              <thead className="bg-gray-200">
+                <tr>
+                  <th className="py-3 px-4 text-left">First Name</th>
+                  <th className="py-3 px-4 text-left">Last Name</th>
+                  <th className="py-3 px-4 text-left">Username</th>
+                  <th className="py-3 px-4 text-left">Package Uses</th>
+                  <th className="py-3 px-4 text-left">Archived At</th>
+                  <th className="py-3 px-4 text-left">Reason</th>
+                  <th className="py-3 px-4 text-left">Notes</th>
+                </tr>
+              </thead>
+              <tbody>
+                {archivedPlayers.map((player) => (
+                  <tr key={player.id} className="border-t">
+                    <td className="py-3 px-4">{player.first_name}</td>
+                    <td className="py-3 px-4">{player.last_name}</td>
+                    <td className="py-3 px-4">{player.username}</td>
+                    <td className="py-3 px-4">{player.package_uses}</td>
+                    <td className="py-3 px-4">{new Date(player.archived_at).toLocaleString()}</td>
+                    <td className="py-3 px-4">{player.archive_reason}</td>
+                    <td className="py-3 px-4">{player.note}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </main>
+      
+      {showArchiveModal && (
+        <ArchiveConfirmationModal
+          onConfirm={archivePlayers}
+          onCancel={() => setShowArchiveModal(false)}
+        />
+      )}
     </div>
   );
 }
