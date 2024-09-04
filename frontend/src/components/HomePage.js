@@ -4,6 +4,7 @@ import axios from 'axios';
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 import config from '../config';
 import ThemeColorPicker from './ThemeColorPicker';
+import { toast } from 'react-toastify';
 
 function HomePage() {
   const [courts, setCourts] = useState([]);
@@ -68,16 +69,21 @@ function HomePage() {
     }
   };
 
-  const removeCourt = async () => {
-    if (courts.length > 0) {
-      try {
-        await axios.delete(`${config.apiBaseUrl}/courts/${courts[courts.length - 1].id}`, {
-          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
-        });
-        fetchCourts();
-      } catch (error) {
-        console.error('Error removing court:', error);
+  const removeCourt = async (courtId) => {
+    try {
+      const response = await axios.delete(`${config.apiBaseUrl}/courts/${courtId}`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+      });
+      
+      if (response.status === 200) {
+        setCourts(prevCourts => prevCourts.filter(court => court.id !== courtId));
+        toast.success('Court removed successfully');
+      } else {
+        throw new Error('Failed to remove court');
       }
+    } catch (error) {
+      console.error('Error removing court:', error);
+      toast.error(error.response?.data?.message || 'Failed to remove court. Please try again.');
     }
   };
 
@@ -251,7 +257,7 @@ function HomePage() {
                               </ul>
                             </div>
                           )}
-                          <div className="flex space-x-2">
+                          <div className="flex space-x-2 mt-4">
                             <button
                               onClick={() => openLockModal(court)}
                               className="bg-primary text-white px-4 py-2 rounded hover:bg-green-600 transition duration-300"
@@ -266,6 +272,16 @@ function HomePage() {
                                 Unlock Court
                               </button>
                             )}
+                            <button
+                              onClick={() => {
+                                if (window.confirm('Are you sure you want to remove this court?')) {
+                                  removeCourt(court.id);
+                                }
+                              }}
+                              className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 transition duration-300"
+                            >
+                              Remove Court
+                            </button>
                           </div>
                         </div>
                       )}
