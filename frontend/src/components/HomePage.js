@@ -210,6 +210,13 @@ function HomePage() {
                           <p className="mb-2">Status: <span className={`font-semibold ${court.is_locked ? 'text-red-500' : 'text-green-500'}`}>
                             {court.is_locked ? 'Locked' : 'Available'}
                           </span></p>
+                          {court.is_locked && court.current_lock && (
+                            <div className="mb-2 p-2 bg-red-100 rounded">
+                              <p>Locked from: {formatDateTime(court.current_lock.start_time)}</p>
+                              <p>Until: {formatDateTime(court.current_lock.end_time)}</p>
+                              <p>Reason: {court.current_lock.reason}</p>
+                            </div>
+                          )}
                           <p className="mb-2">Active Players: {court.active_player_count}</p>
                           <p className="mb-2">Waiting Players: {court.waiting_player_count}</p>
                           {court.active_players && court.active_players.length > 0 && (
@@ -227,7 +234,7 @@ function HomePage() {
                               <h4 className="font-semibold">Scheduled Locks:</h4>
                               <ul>
                                 {court.locks.map((lock) => (
-                                  <li key={lock.id} className="flex justify-between items-center mb-2">
+                                  <li key={lock.id} className="flex justify-between items-center mb-2 p-2 bg-gray-100 rounded">
                                     <span>
                                       {formatDateTime(lock.start_time)} - {formatDateTime(lock.end_time)}
                                       <br />
