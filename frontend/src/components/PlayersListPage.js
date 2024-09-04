@@ -3,6 +3,8 @@ import axios from 'axios';
 import { Link } from 'react-router-dom';
 import config from '../config';
 import ArchiveConfirmationModal from './ArchiveConfirmationModal';
+import DatePicker from 'react-datepicker';
+import 'react-datepicker/dist/react-datepicker.css';
 
 function PlayersListPage() {
   const [players, setPlayers] = useState([]);
