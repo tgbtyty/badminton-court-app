@@ -317,6 +317,7 @@ app.get('/api/courts', authenticateToken, async (req, res) => {
 });
 
 
+
 // Helper function to start or reset the timer for a court
 async function manageCourtTimer(courtId) {
   const activePlayers = await pool.query('SELECT * FROM active_players WHERE court_id = $1', [courtId]);
@@ -392,21 +393,24 @@ app.get('/api/courts', authenticateToken, async (req, res) => {
       // Calculate remaining time for active players
       let remainingTime = calculateRemainingTime(court, activePlayers.rows);
 
+      const isLocked = !!currentLock;
+
       return {
         ...court,
         locks: locksResult.rows,
         active_players: activePlayers.rows,
         waiting_groups: waitingGroups,
-        is_locked: !!currentLock,
+        is_locked: isLocked,
         current_lock: currentLock || null,
         future_locks: futureLocks,
         remaining_time: remainingTime
       };
     }));
+
     res.json(courts);
   } catch (error) {
     console.error('Error fetching courts:', error);
-    res.status(500).json({ message: 'Error fetching courts' });
+    res.status(500).json({ message: 'Error fetching courts', error: error.message });
   }
 });
 
@@ -453,7 +457,12 @@ async function checkAndUpdateCourtLocks() {
         new Date(lock.start_time) <= now && new Date(lock.end_time) > now
       );
 
-      await pool.query('UPDATE courts SET is_locked = $1 WHERE id = $2', [!!currentLock, court.id]);
+      const isLocked = !!currentLock;
+
+      if (court.is_locked !== isLocked) {
+        await pool.query('UPDATE courts SET is_locked = $1 WHERE id = $2', [isLocked, court.id]);
+        console.log(`Updated court ${court.id} lock status to ${isLocked}`);
+      }
     }
   } catch (error) {
     console.error('Error updating court lock status:', error);

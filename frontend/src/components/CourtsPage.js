@@ -14,7 +14,8 @@ function CourtsPage() {
     fetchCourts();
     const interval = setInterval(fetchCourts, 5000); // Refresh every 5 seconds
     return () => clearInterval(interval);
-  }, []);
+  }, [fetchCourts]);
+
 
   useEffect(() => {
     const timerInterval = setInterval(() => {
@@ -39,16 +40,28 @@ function CourtsPage() {
   }, []);
 
 // Fetching em courts
-  const fetchCourts = async () => {
-    try {
-      const response = await axios.get(`${config.apiBaseUrl}/courts`, {
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+const fetchCourts = useCallback(async () => {
+  try {
+    const response = await axios.get(`${config.apiBaseUrl}/courts`, {
+      headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+    });
+    setCourts(prevCourts => {
+      return response.data.map(newCourt => {
+        const prevCourt = prevCourts.find(c => c.id === newCourt.id);
+        if (prevCourt && prevCourt.is_locked !== newCourt.is_locked) {
+          // If the lock status has changed, schedule an update after a short delay
+          setTimeout(() => {
+            setCourts(courts => courts.map(c => c.id === newCourt.id ? newCourt : c));
+          }, 500);
+          return prevCourt;
+        }
+        return newCourt;
       });
-      setCourts(response.data);
-    } catch (error) {
-      console.error('Error fetching courts:', error);
-    }
-  };
+    });
+  } catch (error) {
+    console.error('Error fetching courts:', error);
+  }
+}, []);
 
   const handleCourtAction = (court, actionType) => {
     if (court.is_locked && actionType === 'queue') {
