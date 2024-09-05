@@ -17,29 +17,6 @@ function HomePage() {
   const [timeLeft, setTimeLeft] = useState({});
   const timeLeftRef = useRef({});
 
-  const unlockCourt = useCallback(async (courtId) => {
-    try {
-      await axios.post(`${config.apiBaseUrl}/courts/${courtId}/unlock`, {}, {
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
-      });
-      fetchCourts();
-    } catch (error) {
-      console.error('Error unlocking court:', error);
-    }
-  }, [fetchCourts]);
-
-
-  const checkAndUnlockCourts = useCallback(async () => {
-    const now = new Date();
-    courts.forEach(async (court) => {
-      if (court.locks && court.locks.length > 0) {
-        const activeLocks = court.locks.filter(lock => new Date(lock.end_time) > now);
-        if (activeLocks.length === 0 && court.is_locked) {
-          await unlockCourt(court.id);
-        }
-      }
-    });
-  }, [courts, unlockCourt]);
   
 
   const fetchCourts = useCallback(async () => {
@@ -65,19 +42,14 @@ function HomePage() {
     const fetchInterval = setInterval(() => {
       fetchCourts();
       checkAndUnlockCourts();
-    }, 5000);
+    }, 5000); // Refresh every 10 seconds
 
     const timerInterval = setInterval(() => {
-      let hasUpdates = false;
       Object.keys(timeLeftRef.current).forEach(courtId => {
         if (timeLeftRef.current[courtId] > 0) {
           timeLeftRef.current[courtId] -= 1000;
-          hasUpdates = true;
         }
       });
-      if (hasUpdates) {
-        setCourts(prevCourts => [...prevCourts]); // Force re-render
-      }
     }, 1000);
 
     return () => {
@@ -85,6 +57,47 @@ function HomePage() {
       clearInterval(timerInterval);
     };
   }, [fetchCourts, checkAndUnlockCourts]);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setTimeLeft(prevTimeLeft => {
+        const newTimeLeft = { ...prevTimeLeft };
+        courts.forEach(court => {
+          if (court.remaining_time !== null) {
+            newTimeLeft[court.id] = Math.max(0, (newTimeLeft[court.id] || court.remaining_time) - 1000);
+          }
+        });
+        return newTimeLeft;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [courts]);
+
+  
+
+  const unlockCourt = useCallback(async (courtId) => {
+    try {
+      await axios.post(`${config.apiBaseUrl}/courts/${courtId}/unlock`, {}, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+      });
+      fetchCourts();
+    } catch (error) {
+      console.error('Error unlocking court:', error);
+    }
+  }, [fetchCourts]);
+
+  const checkAndUnlockCourts = useCallback(async () => {
+    const now = new Date();
+    courts.forEach(async (court) => {
+      if (court.locks && court.locks.length > 0) {
+        const activeLocks = court.locks.filter(lock => new Date(lock.end_time) > now);
+        if (activeLocks.length === 0 && court.is_locked) {
+          await unlockCourt(court.id);
+        }
+      }
+    });
+  }, [courts, unlockCourt]);
 
 
   const addCourt = async () => {
