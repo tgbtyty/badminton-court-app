@@ -17,6 +17,18 @@ function HomePage() {
   const [timeLeft, setTimeLeft] = useState({});
   const timeLeftRef = useRef({});
 
+  const unlockCourt = useCallback(async (courtId) => {
+    try {
+      await axios.post(`${config.apiBaseUrl}/courts/${courtId}/unlock`, {}, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+      });
+      fetchCourts();
+    } catch (error) {
+      console.error('Error unlocking court:', error);
+    }
+  }, [fetchCourts]);
+
+
   const checkAndUnlockCourts = useCallback(async () => {
     const now = new Date();
     courts.forEach(async (court) => {
@@ -53,19 +65,18 @@ function HomePage() {
     const fetchInterval = setInterval(() => {
       fetchCourts();
       checkAndUnlockCourts();
-    }, 5000); // Refresh every 10 seconds
+    }, 5000);
 
     const timerInterval = setInterval(() => {
-      const updatedTimeLeft = { ...timeLeftRef.current };
       let hasUpdates = false;
-      Object.keys(updatedTimeLeft).forEach(courtId => {
-        if (updatedTimeLeft[courtId] > 0) {
-          updatedTimeLeft[courtId] -= 1000;
+      Object.keys(timeLeftRef.current).forEach(courtId => {
+        if (timeLeftRef.current[courtId] > 0) {
+          timeLeftRef.current[courtId] -= 1000;
           hasUpdates = true;
         }
       });
       if (hasUpdates) {
-        timeLeftRef.current = updatedTimeLeft;
+        setCourts(prevCourts => [...prevCourts]); // Force re-render
       }
     }, 1000);
 
@@ -93,16 +104,6 @@ function HomePage() {
 
   
 
-  const unlockCourt = useCallback(async (courtId) => {
-    try {
-      await axios.post(`${config.apiBaseUrl}/courts/${courtId}/unlock`, {}, {
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
-      });
-      fetchCourts();
-    } catch (error) {
-      console.error('Error unlocking court:', error);
-    }
-  }, [fetchCourts]);
 
 
 
