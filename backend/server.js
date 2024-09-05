@@ -368,11 +368,34 @@ app.get('/api/courts', authenticateToken, async (req, res) => {
         [court.id]
       );
       
-      // Get active player count
-      const activePlayers = await pool.query('SELECT COUNT(*) FROM active_players WHERE court_id = $1', [court.id]);
+      // Get active players
+      const activePlayers = await pool.query(
+        'SELECT users.id, users.first_name, users.last_name FROM active_players JOIN users ON active_players.user_id = users.id WHERE court_id = $1',
+        [court.id]
+      );
       
-      // Get waiting player count
-      const waitingPlayers = await pool.query('SELECT COUNT(*) FROM waiting_players WHERE court_id = $1', [court.id]);
+      // Get waiting players (grouped)
+      const waitingPlayersResult = await pool.query(
+        'SELECT users.id, users.first_name, users.last_name, waiting_players.joined_at FROM waiting_players JOIN users ON waiting_players.user_id = users.id WHERE court_id = $1 ORDER BY waiting_players.joined_at',
+        [court.id]
+      );
+
+      // Group waiting players
+      const waitingGroups = [];
+      let currentGroup = [];
+      let currentJoinedAt = null;
+      for (const player of waitingPlayersResult.rows) {
+        if (!currentJoinedAt || Math.abs(player.joined_at - currentJoinedAt) < 1000) {
+          currentGroup.push(player);
+        } else {
+          waitingGroups.push(currentGroup);
+          currentGroup = [player];
+        }
+        currentJoinedAt = player.joined_at;
+      }
+      if (currentGroup.length > 0) {
+        waitingGroups.push(currentGroup);
+      }
 
       // Find current and next locks
       const currentLock = locksResult.rows.find(lock => 
@@ -380,14 +403,23 @@ app.get('/api/courts', authenticateToken, async (req, res) => {
       );
       const futureLocks = locksResult.rows.filter(lock => new Date(lock.start_time) > now);
 
+      // Calculate remaining time for active players
+      let remainingTime = null;
+      if (activePlayers.rows.length > 0 && court.timer_start) {
+        const timerStart = new Date(court.timer_start);
+        const elapsedTime = now - timerStart;
+        remainingTime = Math.max(0, 15 * 60 * 1000 - elapsedTime); // 15 minutes in milliseconds
+      }
+
       return {
         ...court,
         locks: locksResult.rows,
-        active_player_count: parseInt(activePlayers.rows[0].count),
-        waiting_player_count: parseInt(waitingPlayers.rows[0].count),
+        active_players: activePlayers.rows,
+        waiting_groups: waitingGroups,
         is_locked: !!currentLock,
         current_lock: currentLock || null,
-        future_locks: futureLocks
+        future_locks: futureLocks,
+        remaining_time: remainingTime
       };
     }));
     res.json(courts);

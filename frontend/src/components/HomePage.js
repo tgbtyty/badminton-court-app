@@ -14,6 +14,8 @@ function HomePage() {
   const [lockDuration, setLockDuration] = useState('');
   const [lockReason, setLockReason] = useState('');
   const [showColorPicker, setShowColorPicker] = useState(false);
+  const [timeLeft, setTimeLeft] = useState({});
+  
 
   const fetchCourts = useCallback(async () => {
     try {
@@ -32,6 +34,24 @@ function HomePage() {
     const interval = setInterval(fetchCourts, 5000); // Refresh every 5 seconds
     return () => clearInterval(interval);
   }, [fetchCourts]);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setTimeLeft(prevTimeLeft => {
+        const newTimeLeft = { ...prevTimeLeft };
+        courts.forEach(court => {
+          if (court.remaining_time !== null) {
+            newTimeLeft[court.id] = Math.max(0, (newTimeLeft[court.id] || court.remaining_time) - 1000);
+          }
+        });
+        return newTimeLeft;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [courts]);
+
+  
 
   const unlockCourt = useCallback(async (courtId) => {
     try {
@@ -177,6 +197,12 @@ function HomePage() {
     setCourts(items);
   };
 
+  const formatTime = (ms) => {
+    const minutes = Math.floor(ms / 60000);
+    const seconds = ((ms % 60000) / 1000).toFixed(0);
+    return `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+  };
+
 
   const formatDateTime = (dateString) => {
     return new Date(dateString).toLocaleString('en-US', {
@@ -221,7 +247,7 @@ function HomePage() {
                         >
                           <h3 className="text-xl font-semibold mb-2">{court.name}</h3>
                           <p className="mb-2">
-                            Status:
+                            Status: 
                             <span className={`font-semibold ${court.is_locked ? 'text-red-500' : 'text-green-500'}`}>
                               {court.is_locked ? 'Locked' : 'Available'}
                             </span>
@@ -234,14 +260,52 @@ function HomePage() {
                               <p>Reason: {court.current_lock.reason}</p>
                             </div>
                           )}
-                          <p className="mb-2">Active Players: {court.active_player_count}</p>
-                          <p className="mb-2">Waiting Players: {court.waiting_player_count}</p>
-                          {court.active_players && court.active_players.length > 0 && (
+                          <p className="mb-2">Active Players: {court.active_players.length}</p>
+                          {court.active_players.length > 0 && (
                             <div className="mb-2">
                               <h4 className="font-semibold">Current Players:</h4>
                               <ul>
                                 {court.active_players.map((player, playerIndex) => (
                                   <li key={playerIndex}>{player.first_name} {player.last_name}</li>
+                                ))}
+                              </ul>
+                              <p>Time Remaining: {formatTime(timeLeft[court.id] || 0)}</p>
+                            </div>
+                          )}
+                          <p className="mb-2">Waiting Groups: {court.waiting_groups.length}</p>
+                          {court.waiting_groups.length > 0 && (
+                            <div className="mb-2">
+                              <h4 className="font-semibold">Waiting Players:</h4>
+                              {court.waiting_groups.map((group, groupIndex) => (
+                                <div key={groupIndex} className="mb-2">
+                                  <p>Group {groupIndex + 1}:</p>
+                                  <ul>
+                                    {group.map((player, playerIndex) => (
+                                      <li key={playerIndex}>{player.first_name} {player.last_name}</li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          {court.future_locks && court.future_locks.length > 0 && (
+                            <div className="mb-2">
+                              <h4 className="font-semibold">Scheduled Locks:</h4>
+                              <ul>
+                                {court.future_locks.map((lock) => (
+                                  <li key={lock.id} className="flex justify-between items-center mb-2 p-2 bg-gray-100 rounded">
+                                    <span>
+                                      {formatDateTime(lock.start_time)} - {formatDateTime(lock.end_time)}
+                                      <br />
+                                      Reason: {lock.reason}
+                                    </span>
+                                    <button
+                                      onClick={() => removeLock(court.id, lock.id)}
+                                      className="text-red-500 hover:text-red-700"
+                                    >
+                                      Remove
+                                    </button>
+                                  </li>
                                 ))}
                               </ul>
                             </div>
