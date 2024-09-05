@@ -14,8 +14,6 @@ function HomePage() {
   const [lockDuration, setLockDuration] = useState('');
   const [lockReason, setLockReason] = useState('');
   const [showColorPicker, setShowColorPicker] = useState(false);
-  const [timeLeft, setTimeLeft] = useState({});
-  
 
   const fetchCourts = useCallback(async () => {
     try {
@@ -34,24 +32,6 @@ function HomePage() {
     const interval = setInterval(fetchCourts, 5000); // Refresh every 5 seconds
     return () => clearInterval(interval);
   }, [fetchCourts]);
-
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setTimeLeft(prevTimeLeft => {
-        const newTimeLeft = { ...prevTimeLeft };
-        courts.forEach(court => {
-          if (court.remaining_time !== null) {
-            newTimeLeft[court.id] = Math.max(0, (newTimeLeft[court.id] || court.remaining_time) - 1000);
-          }
-        });
-        return newTimeLeft;
-      });
-    }, 1000);
-
-    return () => clearInterval(timer);
-  }, [courts]);
-
-  
 
   const unlockCourt = useCallback(async (courtId) => {
     try {
@@ -197,12 +177,6 @@ function HomePage() {
     setCourts(items);
   };
 
-  const formatTime = (ms) => {
-    const minutes = Math.floor(ms / 60000);
-    const seconds = ((ms % 60000) / 1000).toFixed(0);
-    return `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
-  };
-
 
   const formatDateTime = (dateString) => {
     return new Date(dateString).toLocaleString('en-US', {
@@ -236,94 +210,94 @@ function HomePage() {
             <Droppable droppableId="courts">
               {(provided) => (
                 <div {...provided.droppableProps} ref={provided.innerRef} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {courts.map((court, index) => (
-                    <Draggable key={court.id} draggableId={court.id.toString()} index={index}>
-                      {(provided) => (
-                        <div
-                          ref={provided.innerRef}
-                          {...provided.draggableProps}
-                          {...provided.dragHandleProps}
-                          className="bg-white shadow-md rounded-lg p-4"
-                        >
-                          <h3 className="text-xl font-semibold mb-2">{court.name}</h3>
-                          <p className="mb-2">
-                            Status:
-                            <span className={`font-semibold ${court.is_locked ? 'text-red-500' : 'text-green-500'}`}>
-                              {court.is_locked ? 'Locked' : 'Available'}
-                            </span>
-                          </p>
-                          {court.current_lock && (
-                            <div className="mb-2 p-2 bg-red-100 rounded">
-                              <p>Currently locked:</p>
-                              <p>From: {formatDateTime(court.current_lock.start_time)}</p>
-                              <p>Until: {formatDateTime(court.current_lock.end_time)}</p>
-                              <p>Reason: {court.current_lock.reason}</p>
-                            </div>
-                          )}
-                          <p className="mb-2">Active Players: {court.active_player_count}</p>
-                          <p className="mb-2">Waiting Players: {court.waiting_player_count}</p>
-                          {court.active_players && court.active_players.length > 0 && (
-                            <div className="mb-2">
-                              <h4 className="font-semibold">Current Players:</h4>
-                              <ul>
-                                {court.active_players.map((player, playerIndex) => (
-                                  <li key={playerIndex}>{player.first_name} {player.last_name}</li>
-                                ))}
-                              </ul>
-                            </div>
-                          )}
-                          {court.future_locks && court.future_locks.length > 0 && (
-                            <div className="mb-2">
-                              <h4 className="font-semibold">Scheduled Locks:</h4>
-                              <ul>
-                                {court.future_locks.map((lock) => (
-                                  <li key={lock.id} className="flex justify-between items-center mb-2 p-2 bg-gray-100 rounded">
-                                    <span>
-                                      {formatDateTime(lock.start_time)} - {formatDateTime(lock.end_time)}
-                                      <br />
-                                      Reason: {lock.reason}
-                                    </span>
-                                    <button
-                                      onClick={() => removeLock(court.id, lock.id)}
-                                      className="text-red-500 hover:text-red-700"
-                                    >
-                                      Remove
-                                    </button>
-                                  </li>
-                                ))}
-                              </ul>
-                            </div>
-                          )}
-                          <div className="flex space-x-2 mt-4">
-                            <button
-                              onClick={() => openLockModal(court)}
-                              className="bg-primary text-white px-4 py-2 rounded hover:bg-green-600 transition duration-300"
-                            >
-                              Lock Court
-                            </button>
-                            {court.is_locked && (
-                              <button
-                                onClick={() => unlockCourt(court.id)}
-                                className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition duration-300"
-                              >
-                                Unlock Court
-                              </button>
-                            )}
-                            <button
-                              onClick={() => {
-                                if (window.confirm('Are you sure you want to remove this court?')) {
-                                  removeCourt(court.id);
-                                }
-                              }}
-                              className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 transition duration-300"
-                            >
-                              Remove Court
-                            </button>
-                          </div>
-                        </div>
-                      )}
-                    </Draggable>
-                  ))}
+{courts.map((court, index) => (
+  <Draggable key={court.id} draggableId={court.id.toString()} index={index}>
+    {(provided) => (
+      <div
+        ref={provided.innerRef}
+        {...provided.draggableProps}
+        {...provided.dragHandleProps}
+        className="bg-white shadow-md rounded-lg p-4"
+      >
+        <h3 className="text-xl font-semibold mb-2">{court.name}</h3>
+        <p className="mb-2">
+          Status: 
+          <span className={`font-semibold ${court.is_locked ? 'text-red-500' : 'text-green-500'}`}>
+            {court.is_locked ? 'Locked' : 'Available'}
+          </span>
+        </p>
+        {court.current_lock && (
+          <div className="mb-2 p-2 bg-red-100 rounded">
+            <p>Currently locked:</p>
+            <p>From: {formatDateTime(court.current_lock.start_time)}</p>
+            <p>Until: {formatDateTime(court.current_lock.end_time)}</p>
+            <p>Reason: {court.current_lock.reason}</p>
+          </div>
+        )}
+        <p className="mb-2">Active Players: {court.active_player_count}</p>
+        <p className="mb-2">Waiting Players: {court.waiting_player_count}</p>
+        {court.active_players && court.active_players.length > 0 && (
+          <div className="mb-2">
+            <h4 className="font-semibold">Current Players:</h4>
+            <ul>
+              {court.active_players.map((player, playerIndex) => (
+                <li key={playerIndex}>{player.first_name} {player.last_name}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+        {court.future_locks && court.future_locks.length > 0 && (
+          <div className="mb-2">
+            <h4 className="font-semibold">Scheduled Locks:</h4>
+            <ul>
+              {court.future_locks.map((lock) => (
+                <li key={lock.id} className="flex justify-between items-center mb-2 p-2 bg-gray-100 rounded">
+                  <span>
+                    {formatDateTime(lock.start_time)} - {formatDateTime(lock.end_time)}
+                    <br />
+                    Reason: {lock.reason}
+                  </span>
+                  <button
+                    onClick={() => removeLock(court.id, lock.id)}
+                    className="text-red-500 hover:text-red-700"
+                  >
+                    Remove
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+        <div className="flex space-x-2 mt-4">
+          <button
+            onClick={() => openLockModal(court)}
+            className="bg-primary text-white px-4 py-2 rounded hover:bg-green-600 transition duration-300"
+          >
+            Lock Court
+          </button>
+          {court.is_locked && (
+            <button
+              onClick={() => unlockCourt(court.id)}
+              className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition duration-300"
+            >
+              Unlock Court
+            </button>
+          )}
+          <button
+            onClick={() => {
+              if (window.confirm('Are you sure you want to remove this court?')) {
+                removeCourt(court.id);
+              }
+            }}
+            className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 transition duration-300"
+          >
+            Remove Court
+          </button>
+        </div>
+      </div>
+    )}
+  </Draggable>
+))}
                   {provided.placeholder}
                 </div>
               )}
