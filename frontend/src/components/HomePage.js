@@ -220,12 +220,16 @@ function HomePage() {
                           className="bg-white shadow-md rounded-lg p-4"
                         >
                           <h3 className="text-xl font-semibold mb-2">{court.name}</h3>
-                          <p className="mb-2">Status: <span className={`font-semibold ${court.is_locked ? 'text-red-500' : 'text-green-500'}`}>
-                            {court.is_locked ? 'Locked' : 'Available'}
-                          </span></p>
-                          {court.is_locked && court.current_lock && (
+                          <p className="mb-2">
+                            Status:
+                            <span className={`font-semibold ${court.is_locked ? 'text-red-500' : 'text-green-500'}`}>
+                              {court.is_locked ? 'Locked' : 'Available'}
+                            </span>
+                          </p>
+                          {court.current_lock && (
                             <div className="mb-2 p-2 bg-red-100 rounded">
-                              <p>Locked from: {formatDateTime(court.current_lock.start_time)}</p>
+                              <p>Currently locked:</p>
+                              <p>From: {formatDateTime(court.current_lock.start_time)}</p>
                               <p>Until: {formatDateTime(court.current_lock.end_time)}</p>
                               <p>Reason: {court.current_lock.reason}</p>
                             </div>
@@ -242,11 +246,11 @@ function HomePage() {
                               </ul>
                             </div>
                           )}
-                          {court.locks && court.locks.length > 0 && (
+                          {court.future_locks && court.future_locks.length > 0 && (
                             <div className="mb-2">
                               <h4 className="font-semibold">Scheduled Locks:</h4>
                               <ul>
-                                {court.locks.map((lock) => (
+                                {court.future_locks.map((lock) => (
                                   <li key={lock.id} className="flex justify-between items-center mb-2 p-2 bg-gray-100 rounded">
                                     <span>
                                       {formatDateTime(lock.start_time)} - {formatDateTime(lock.end_time)}

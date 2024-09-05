@@ -359,6 +359,8 @@ setInterval(checkAndRotatePlayers, 6000);
 app.get('/api/courts', authenticateToken, async (req, res) => {
   try {
     const courtsResult = await pool.query('SELECT * FROM courts');
+    const now = new Date();
+    
     const courts = await Promise.all(courtsResult.rows.map(async (court) => {
       // Get locks
       const locksResult = await pool.query(
@@ -372,11 +374,11 @@ app.get('/api/courts', authenticateToken, async (req, res) => {
       // Get waiting player count
       const waitingPlayers = await pool.query('SELECT COUNT(*) FROM waiting_players WHERE court_id = $1', [court.id]);
 
-      // Check if the court should be currently locked
-      const now = new Date();
+      // Find current and next locks
       const currentLock = locksResult.rows.find(lock => 
         new Date(lock.start_time) <= now && new Date(lock.end_time) > now
       );
+      const futureLocks = locksResult.rows.filter(lock => new Date(lock.start_time) > now);
 
       return {
         ...court,
@@ -384,7 +386,8 @@ app.get('/api/courts', authenticateToken, async (req, res) => {
         active_player_count: parseInt(activePlayers.rows[0].count),
         waiting_player_count: parseInt(waitingPlayers.rows[0].count),
         is_locked: !!currentLock,
-        current_lock: currentLock || null
+        current_lock: currentLock || null,
+        future_locks: futureLocks
       };
     }));
     res.json(courts);
