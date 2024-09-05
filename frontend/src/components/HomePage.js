@@ -15,6 +15,8 @@ function HomePage() {
   const [lockReason, setLockReason] = useState('');
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [timeLeft, setTimeLeft] = useState({});
+  const timeLeftRef = useRef({});
+
   
 
   const fetchCourts = useCallback(async () => {
