@@ -17,6 +17,17 @@ function HomePage() {
   const [timeLeft, setTimeLeft] = useState({});
   const timeLeftRef = useRef({});
 
+  const checkAndUnlockCourts = useCallback(async () => {
+    const now = new Date();
+    courts.forEach(async (court) => {
+      if (court.locks && court.locks.length > 0) {
+        const activeLocks = court.locks.filter(lock => new Date(lock.end_time) > now);
+        if (activeLocks.length === 0 && court.is_locked) {
+          await unlockCourt(court.id);
+        }
+      }
+    });
+  }, [courts, unlockCourt]);
   
 
   const fetchCourts = useCallback(async () => {
@@ -45,11 +56,17 @@ function HomePage() {
     }, 5000); // Refresh every 10 seconds
 
     const timerInterval = setInterval(() => {
-      Object.keys(timeLeftRef.current).forEach(courtId => {
-        if (timeLeftRef.current[courtId] > 0) {
-          timeLeftRef.current[courtId] -= 1000;
+      const updatedTimeLeft = { ...timeLeftRef.current };
+      let hasUpdates = false;
+      Object.keys(updatedTimeLeft).forEach(courtId => {
+        if (updatedTimeLeft[courtId] > 0) {
+          updatedTimeLeft[courtId] -= 1000;
+          hasUpdates = true;
         }
       });
+      if (hasUpdates) {
+        timeLeftRef.current = updatedTimeLeft;
+      }
     }, 1000);
 
     return () => {
@@ -87,17 +104,7 @@ function HomePage() {
     }
   }, [fetchCourts]);
 
-  const checkAndUnlockCourts = useCallback(async () => {
-    const now = new Date();
-    courts.forEach(async (court) => {
-      if (court.locks && court.locks.length > 0) {
-        const activeLocks = court.locks.filter(lock => new Date(lock.end_time) > now);
-        if (activeLocks.length === 0 && court.is_locked) {
-          await unlockCourt(court.id);
-        }
-      }
-    });
-  }, [courts, unlockCourt]);
+
 
 
   const addCourt = async () => {
