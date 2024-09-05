@@ -381,35 +381,16 @@ app.get('/api/courts', authenticateToken, async (req, res) => {
       );
 
       // Group waiting players
-      const waitingGroups = [];
-      let currentGroup = [];
-      let currentJoinedAt = null;
-      for (const player of waitingPlayersResult.rows) {
-        if (!currentJoinedAt || Math.abs(player.joined_at - currentJoinedAt) < 1000) {
-          currentGroup.push(player);
-        } else {
-          waitingGroups.push(currentGroup);
-          currentGroup = [player];
-        }
-        currentJoinedAt = player.joined_at;
-      }
-      if (currentGroup.length > 0) {
-        waitingGroups.push(currentGroup);
-      }
+      const waitingGroups = groupWaitingPlayers(waitingPlayersResult.rows);
 
-      // Find current and next locks
+      // Find current and future locks
       const currentLock = locksResult.rows.find(lock => 
         new Date(lock.start_time) <= now && new Date(lock.end_time) > now
       );
       const futureLocks = locksResult.rows.filter(lock => new Date(lock.start_time) > now);
 
       // Calculate remaining time for active players
-      let remainingTime = null;
-      if (activePlayers.rows.length > 0 && court.timer_start) {
-        const timerStart = new Date(court.timer_start);
-        const elapsedTime = now - timerStart;
-        remainingTime = Math.max(0, 15 * 60 * 1000 - elapsedTime); // 15 minutes in milliseconds
-      }
+      let remainingTime = calculateRemainingTime(court, activePlayers.rows);
 
       return {
         ...court,
@@ -428,6 +409,59 @@ app.get('/api/courts', authenticateToken, async (req, res) => {
     res.status(500).json({ message: 'Error fetching courts' });
   }
 });
+
+// Helper function to group waiting players
+function groupWaitingPlayers(players) {
+  const waitingGroups = [];
+  let currentGroup = [];
+  let currentJoinedAt = null;
+  for (const player of players) {
+    if (!currentJoinedAt || Math.abs(player.joined_at - currentJoinedAt) < 1000) {
+      currentGroup.push(player);
+    } else {
+      waitingGroups.push(currentGroup);
+      currentGroup = [player];
+    }
+    currentJoinedAt = player.joined_at;
+  }
+  if (currentGroup.length > 0) {
+    waitingGroups.push(currentGroup);
+  }
+  return waitingGroups;
+}
+
+// Helper function to calculate remaining time
+function calculateRemainingTime(court, activePlayers) {
+  const now = new Date();
+  if (activePlayers.length > 0 && court.timer_start) {
+    const timerStart = new Date(court.timer_start);
+    const elapsedTime = now - timerStart;
+    return Math.max(0, 15 * 60 * 1000 - elapsedTime); // 15 minutes in milliseconds
+  }
+  return null;
+}
+
+// Function to check and update court lock status
+async function checkAndUpdateCourtLocks() {
+  try {
+    const courts = await pool.query('SELECT * FROM courts');
+    const now = new Date();
+
+    for (const court of courts.rows) {
+      const locks = await pool.query('SELECT * FROM scheduled_locks WHERE court_id = $1', [court.id]);
+      const currentLock = locks.rows.find(lock => 
+        new Date(lock.start_time) <= now && new Date(lock.end_time) > now
+      );
+
+      await pool.query('UPDATE courts SET is_locked = $1 WHERE id = $2', [!!currentLock, court.id]);
+    }
+  } catch (error) {
+    console.error('Error updating court lock status:', error);
+  }
+}
+
+// Run the check every minute
+setInterval(checkAndUpdateCourtLocks, 60000);
 
 // Add a court
 app.post('/api/courts', authenticateToken, async (req, res) => {
@@ -878,5 +912,8 @@ app.get('/api/players/archived', authenticateToken, async (req, res) => {
   }
 });
 
+
+// Add this line near the end of your file, before startServer()
+setInterval(checkAndUpdateCourtLocks, 60000);
 
 startServer();

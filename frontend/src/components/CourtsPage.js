@@ -24,11 +24,21 @@ function CourtsPage() {
         }
         return court;
       }));
+
+      // Check and update lock status
+      const now = new Date();
+      setCourts(prevCourts => prevCourts.map(court => {
+        const shouldBeLocked = court.locks && court.locks.some(lock => 
+          new Date(lock.start_time) <= now && new Date(lock.end_time) > now
+        );
+        return { ...court, is_locked: shouldBeLocked };
+      }));
     }, 1000);
 
     return () => clearInterval(timerInterval);
   }, []);
 
+// Fetching em courts
   const fetchCourts = async () => {
     try {
       const response = await axios.get(`${config.apiBaseUrl}/courts`, {
@@ -41,12 +51,17 @@ function CourtsPage() {
   };
 
   const handleCourtAction = (court, actionType) => {
+    if (court.is_locked && actionType === 'queue') {
+      alert('This court is currently locked and not available for queuing.');
+      return;
+    }
     setSelectedCourt(court);
     setShowQueueModal(true);
     setPlayerCredentials([{ username: '', password: '' }]);
     setQueueError('');
     setAction(actionType);
   };
+
 
   const handleCredentialChange = (index, field, value) => {
     const newCredentials = [...playerCredentials];
@@ -87,6 +102,16 @@ function CourtsPage() {
     return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
   };
 
+  const formatDateTime = (dateString) => {
+    return new Date(dateString).toLocaleString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  };
+
   return (
     <div className="min-h-screen bg-gray-100">
       <header className="bg-primary text-white p-4">
@@ -97,9 +122,21 @@ function CourtsPage() {
           {courts.map(court => (
             <div 
               key={court.id} 
-              className="bg-white p-4 rounded shadow hover:shadow-lg transition duration-300"
+              className={`bg-white p-4 rounded shadow hover:shadow-lg transition duration-300 ${court.is_locked ? 'border-2 border-red-500' : ''}`}
             >
               <h3 className="text-xl font-bold mb-2">{court.name}</h3>
+              <p className="mb-2">
+                Status: <span className={`font-semibold ${court.is_locked ? 'text-red-500' : 'text-green-500'}`}>
+                  {court.is_locked ? 'Locked' : 'Available'}
+                </span>
+              </p>
+              {court.is_locked && court.current_lock && (
+                <p className="mb-2 text-red-500">
+                  Locked until: {formatDateTime(court.current_lock.end_time)}
+                  <br />
+                  Reason: {court.current_lock.reason}
+                </p>
+              )}
               <p className="mb-2">
                 Timer: {court.remaining_time && court.active_players.length > 0
                   ? formatTime(court.remaining_time)
@@ -128,7 +165,8 @@ function CourtsPage() {
               </div>
               <button
                 onClick={() => handleCourtAction(court, 'queue')}
-                className="bg-primary text-white px-4 py-2 rounded hover:bg-green-600 transition duration-300 mr-2"
+                className={`bg-primary text-white px-4 py-2 rounded hover:bg-green-600 transition duration-300 mr-2 ${court.is_locked ? 'opacity-50 cursor-not-allowed' : ''}`}
+                disabled={court.is_locked}
               >
                 Queue for This Court
               </button>
