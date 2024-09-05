@@ -27,12 +27,6 @@ function HomePage() {
     }
   }, []);
 
-  useEffect(() => {
-    fetchCourts();
-    const interval = setInterval(fetchCourts, 5000); // Refresh every 5 seconds
-    return () => clearInterval(interval);
-  }, [fetchCourts]);
-
   const unlockCourt = useCallback(async (courtId) => {
     try {
       await axios.post(`${config.apiBaseUrl}/courts/${courtId}/unlock`, {}, {
