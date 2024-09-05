@@ -23,6 +23,12 @@ function HomePage() {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
       });
       setCourts(response.data);
+      // Update timeLeftRef with new remaining_time values
+      response.data.forEach(court => {
+        if (court.remaining_time !== null) {
+          timeLeftRef.current[court.id] = court.remaining_time;
+        }
+      });
     } catch (error) {
       console.error('Error fetching courts:', error);
       toast.error('Failed to fetch courts. Please try again.');
@@ -31,9 +37,24 @@ function HomePage() {
 
   useEffect(() => {
     fetchCourts();
-    const interval = setInterval(fetchCourts, 5000); // Refresh every 5 seconds
-    return () => clearInterval(interval);
-  }, [fetchCourts]);
+    const fetchInterval = setInterval(() => {
+      fetchCourts();
+      checkAndUnlockCourts();
+    }, 5000); // Refresh every 10 seconds
+
+    const timerInterval = setInterval(() => {
+      Object.keys(timeLeftRef.current).forEach(courtId => {
+        if (timeLeftRef.current[courtId] > 0) {
+          timeLeftRef.current[courtId] -= 1000;
+        }
+      });
+    }, 1000);
+
+    return () => {
+      clearInterval(fetchInterval);
+      clearInterval(timerInterval);
+    };
+  }, [fetchCourts, checkAndUnlockCourts]);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -76,14 +97,6 @@ function HomePage() {
     });
   }, [courts, unlockCourt]);
 
-  useEffect(() => {
-    fetchCourts();
-    const interval = setInterval(() => {
-      fetchCourts();
-      checkAndUnlockCourts();
-    }, 5000); // Refresh and check locks every 5 seconds
-    return () => clearInterval(interval);
-  }, [fetchCourts, checkAndUnlockCourts]);
 
   const addCourt = async () => {
     try {
@@ -198,9 +211,10 @@ function HomePage() {
   };
 
   const formatTime = (ms) => {
+    if (ms === null || ms === undefined) return '0:00';
     const minutes = Math.floor(ms / 60000);
     const seconds = ((ms % 60000) / 1000).toFixed(0);
-    return `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+    return `${minutes}:${seconds.padStart(2, '0')}`;
   };
 
 
@@ -269,7 +283,7 @@ function HomePage() {
                                   <li key={playerIndex}>{player.first_name} {player.last_name}</li>
                                 ))}
                               </ul>
-                              <p>Time Remaining: {formatTime(timeLeft[court.id] || 0)}</p>
+                              <p>Time Remaining: {formatTime(timeLeftRef.current[court.id])}</p>
                             </div>
                           )}
                           <p className="mb-2">Waiting Groups: {court.waiting_groups.length}</p>
