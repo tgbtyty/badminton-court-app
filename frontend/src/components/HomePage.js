@@ -23,8 +23,15 @@ function HomePage() {
       setCourts(response.data);
     } catch (error) {
       console.error('Error fetching courts:', error);
+      toast.error('Failed to fetch courts. Please try again.');
     }
   }, []);
+
+  useEffect(() => {
+    fetchCourts();
+    const interval = setInterval(fetchCourts, 5000); // Refresh every 5 seconds
+    return () => clearInterval(interval);
+  }, [fetchCourts]);
 
   const unlockCourt = useCallback(async (courtId) => {
     try {
@@ -74,7 +81,7 @@ function HomePage() {
       const response = await axios.delete(`${config.apiBaseUrl}/courts/${courtId}`, {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
       });
-      
+
       if (response.status === 200) {
         setCourts(prevCourts => prevCourts.filter(court => court.id !== courtId));
         toast.success('Court removed successfully');
@@ -100,28 +107,28 @@ function HomePage() {
       if (!lockStartTime || !lockDuration || !lockReason) {
         throw new Error('Please fill in all fields');
       }
-  
+
       const today = new Date().toISOString().split('T')[0];
       const startDateTime = new Date(`${today}T${lockStartTime}`);
-      
+
       if (isNaN(startDateTime.getTime())) {
         throw new Error('Invalid start time');
       }
-  
+
       const [hours, minutes] = lockDuration.split(':').map(Number);
       if (isNaN(hours) || isNaN(minutes)) {
         throw new Error('Invalid duration');
       }
-  
+
       const durationInMinutes = hours * 60 + minutes;
       const endDateTime = new Date(startDateTime.getTime() + durationInMinutes * 60000);
-  
+
       console.log('Sending lock request:', {
         startTime: startDateTime.toISOString(),
         endTime: endDateTime.toISOString(),
         reason: lockReason
       });
-  
+
       const response = await axios.post(`${config.apiBaseUrl}/courts/${selectedCourt.id}/lock`, {
         startTime: startDateTime.toISOString(),
         endTime: endDateTime.toISOString(),
@@ -129,7 +136,7 @@ function HomePage() {
       }, {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
       });
-      
+
       console.log('Lock court response:', response.data);
       setShowLockModal(false);
       fetchCourts();
@@ -170,14 +177,14 @@ function HomePage() {
     setCourts(items);
   };
 
+
   const formatDateTime = (dateString) => {
-    const date = new Date(dateString);
-    return date.toLocaleString([], { 
-      year: 'numeric', 
-      month: 'numeric', 
-      day: 'numeric', 
-      hour: '2-digit', 
-      minute: '2-digit'
+    return new Date(dateString).toLocaleString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
     });
   };
 
@@ -186,7 +193,7 @@ function HomePage() {
     <div className="min-h-screen bg-gray-100 relative">
       <header className="bg-primary text-white p-4 flex justify-between items-center">
         <h1 className="text-3xl font-bold">Badminton Court Management</h1>
-        <button 
+        <button
           onClick={() => setShowColorPicker(!showColorPicker)}
           className="p-2 rounded-full hover:bg-green-600 transition duration-300"
         >
@@ -299,12 +306,6 @@ function HomePage() {
             className="bg-primary text-white px-6 py-2 rounded hover:bg-green-600 transition duration-300"
           >
             Add Court
-          </button>
-          <button
-            onClick={removeCourt}
-            className="bg-red-500 text-white px-6 py-2 rounded hover:bg-red-600 transition duration-300"
-          >
-            Remove Court
           </button>
         </div>
         <div className="flex flex-col space-y-4">

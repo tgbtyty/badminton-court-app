@@ -438,40 +438,46 @@ app.delete('/api/courts/:id', authenticateToken, async (req, res) => {
 
 // Lock a court
 app.post('/api/courts/:id/lock', authenticateToken, async (req, res) => {
+  const client = await pool.connect();
   try {
+    await client.query('BEGIN');
+
     const { id } = req.params;
     const { startTime, endTime, reason } = req.body;
 
-    console.log('Received lock request:', { startTime, endTime, reason });
+    console.log('Received lock request:', { id, startTime, endTime, reason });
 
     if (!startTime || !endTime || !reason) {
-      return res.status(400).json({ message: 'Missing required fields' });
+      throw new Error('Missing required fields');
     }
 
     const startDateTime = new Date(startTime);
     const endDateTime = new Date(endTime);
 
     if (isNaN(startDateTime.getTime()) || isNaN(endDateTime.getTime())) {
-      return res.status(400).json({ message: 'Invalid date/time format' });
+      throw new Error('Invalid date/time format');
     }
 
-    // Format dates for PostgreSQL
-    const formattedStartTime = startDateTime.toISOString();
-    const formattedEndTime = endDateTime.toISOString();
-
     // Insert the lock into scheduled_locks
-    const lockResult = await pool.query(
+    const lockResult = await client.query(
       'INSERT INTO scheduled_locks (court_id, start_time, end_time, reason) VALUES ($1, $2, $3, $4) RETURNING *',
-      [id, formattedStartTime, formattedEndTime, reason]
+      [id, startDateTime, endDateTime, reason]
     );
 
     // Update the court's is_locked status
-    await pool.query('UPDATE courts SET is_locked = true WHERE id = $1', [id]);
+    await client.query('UPDATE courts SET is_locked = true WHERE id = $1', [id]);
+
+    await client.query('COMMIT');
+
+    console.log('Lock successfully created:', lockResult.rows[0]);
 
     res.json(lockResult.rows[0]);
   } catch (error) {
+    await client.query('ROLLBACK');
     console.error('Error locking court:', error);
     res.status(500).json({ message: 'Error locking court', error: error.message });
+  } finally {
+    client.release();
   }
 });
 
