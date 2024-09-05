@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
@@ -15,8 +15,6 @@ function HomePage() {
   const [lockReason, setLockReason] = useState('');
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [timeLeft, setTimeLeft] = useState({});
-  const timeLeftRef = useRef({});
-
   
 
   const fetchCourts = useCallback(async () => {
@@ -39,24 +37,9 @@ function HomePage() {
 
   useEffect(() => {
     fetchCourts();
-    const fetchInterval = setInterval(() => {
-      fetchCourts();
-      checkAndUnlockCourts();
-    }, 5000); // Refresh every 10 seconds
-
-    const timerInterval = setInterval(() => {
-      Object.keys(timeLeftRef.current).forEach(courtId => {
-        if (timeLeftRef.current[courtId] > 0) {
-          timeLeftRef.current[courtId] -= 1000;
-        }
-      });
-    }, 1000);
-
-    return () => {
-      clearInterval(fetchInterval);
-      clearInterval(timerInterval);
-    };
-  }, [fetchCourts, checkAndUnlockCourts]);
+    const interval = setInterval(fetchCourts, 5000); // Refresh every 5 seconds
+    return () => clearInterval(interval);
+  }, [fetchCourts]);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -99,6 +82,14 @@ function HomePage() {
     });
   }, [courts, unlockCourt]);
 
+  useEffect(() => {
+    fetchCourts();
+    const interval = setInterval(() => {
+      fetchCourts();
+      checkAndUnlockCourts();
+    }, 5000); // Refresh and check locks every 5 seconds
+    return () => clearInterval(interval);
+  }, [fetchCourts, checkAndUnlockCourts]);
 
   const addCourt = async () => {
     try {
@@ -213,10 +204,9 @@ function HomePage() {
   };
 
   const formatTime = (ms) => {
-    if (ms === null || ms === undefined) return '0:00';
     const minutes = Math.floor(ms / 60000);
     const seconds = ((ms % 60000) / 1000).toFixed(0);
-    return `${minutes}:${seconds.padStart(2, '0')}`;
+    return `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
   };
 
 
@@ -285,7 +275,7 @@ function HomePage() {
                                   <li key={playerIndex}>{player.first_name} {player.last_name}</li>
                                 ))}
                               </ul>
-                              <p>Time Remaining: {formatTime(timeLeftRef.current[court.id])}</p>
+                              <p>Time Remaining: {formatTime(timeLeft[court.id] || 0)}</p>
                             </div>
                           )}
                           <p className="mb-2">Waiting Groups: {court.waiting_groups.length}</p>
