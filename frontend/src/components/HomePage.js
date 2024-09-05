@@ -86,27 +86,6 @@ function HomePage() {
     };
   }, [fetchCourts, checkAndUnlockCourts]);
 
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setTimeLeft(prevTimeLeft => {
-        const newTimeLeft = { ...prevTimeLeft };
-        courts.forEach(court => {
-          if (court.remaining_time !== null) {
-            newTimeLeft[court.id] = Math.max(0, (newTimeLeft[court.id] || court.remaining_time) - 1000);
-          }
-        });
-        return newTimeLeft;
-      });
-    }, 1000);
-
-    return () => clearInterval(timer);
-  }, [courts]);
-
-  
-
-
-
-
 
   const addCourt = async () => {
     try {
