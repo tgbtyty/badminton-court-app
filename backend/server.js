@@ -259,52 +259,46 @@ async function movePlayersToActiveCourt(courtId) {
 app.get('/api/courts', authenticateToken, async (req, res) => {
   try {
     const courtsResult = await pool.query('SELECT * FROM courts');
+    const now = new Date();
+    
     const courts = await Promise.all(courtsResult.rows.map(async (court) => {
+      // Get locks
+      const locksResult = await pool.query(
+        'SELECT * FROM scheduled_locks WHERE court_id = $1 ORDER BY start_time',
+        [court.id]
+      );
+      
       // Get active players
-      const activePlayers = await pool.query(`
-        SELECT u.id, u.first_name, u.last_name 
-        FROM active_players ap 
-        JOIN users u ON ap.user_id = u.id 
-        WHERE ap.court_id = $1
-      `, [court.id]);
-
-      // Get waiting players
-      const waitingPlayers = await pool.query(`
-        SELECT u.id, u.first_name, u.last_name, wp.joined_at 
-        FROM waiting_players wp 
-        JOIN users u ON wp.user_id = u.id 
-        WHERE wp.court_id = $1 
-        ORDER BY wp.joined_at
-      `, [court.id]);
+      const activePlayers = await pool.query(
+        'SELECT users.id, users.first_name, users.last_name FROM active_players JOIN users ON active_players.user_id = users.id WHERE court_id = $1',
+        [court.id]
+      );
+      
+      // Get waiting players (grouped)
+      const waitingPlayersResult = await pool.query(
+        'SELECT users.id, users.first_name, users.last_name, waiting_players.joined_at FROM waiting_players JOIN users ON waiting_players.user_id = users.id WHERE court_id = $1 ORDER BY waiting_players.joined_at',
+        [court.id]
+      );
 
       // Group waiting players
-      const waitingGroups = [];
-      let currentGroup = [];
-      let currentJoinedAt = null;
-      for (const player of waitingPlayers.rows) {
-        if (!currentJoinedAt || player.joined_at.getTime() - currentJoinedAt.getTime() < 1000) {
-          currentGroup.push(player);
-        } else {
-          waitingGroups.push(currentGroup);
-          currentGroup = [player];
-        }
-        currentJoinedAt = player.joined_at;
-      }
-      if (currentGroup.length > 0) {
-        waitingGroups.push(currentGroup);
-      }
+      const waitingGroups = groupWaitingPlayers(waitingPlayersResult.rows);
 
-      // Calculate remaining time
-      let remainingTime = null;
-      if (court.timer_start) {
-        const elapsedTime = Date.now() - new Date(court.timer_start).getTime();
-        remainingTime = Math.max(0, 15 * 60 - Math.floor(elapsedTime / 1000));
-      }
+      // Find current and future locks
+      const currentLock = locksResult.rows.find(lock => 
+        new Date(lock.start_time) <= now && new Date(lock.end_time) > now
+      );
+      const futureLocks = locksResult.rows.filter(lock => new Date(lock.start_time) > now);
+
+      // Calculate remaining time for active players
+      let remainingTime = calculateRemainingTime(court, activePlayers.rows);
 
       return {
         ...court,
+        locks: locksResult.rows,
         active_players: activePlayers.rows,
         waiting_groups: waitingGroups,
+        current_lock: currentLock || null,
+        future_locks: futureLocks,
         remaining_time: remainingTime
       };
     }));
@@ -312,7 +306,7 @@ app.get('/api/courts', authenticateToken, async (req, res) => {
     res.json(courts);
   } catch (error) {
     console.error('Error fetching courts:', error);
-    res.status(500).json({ message: 'Error fetching courts' });
+    res.status(500).json({ message: 'Error fetching courts', error: error.message });
   }
 });
 
@@ -448,20 +442,21 @@ function calculateRemainingTime(court, activePlayers) {
 // Function to check and update court lock status
 async function checkAndUpdateCourtLocks() {
   try {
-    const courts = await pool.query('SELECT * FROM courts');
     const now = new Date();
-
-    for (const court of courts.rows) {
-      const locks = await pool.query('SELECT * FROM scheduled_locks WHERE court_id = $1', [court.id]);
-      const currentLock = locks.rows.find(lock => 
+    const courtsResult = await pool.query('SELECT * FROM courts');
+    
+    for (const court of courtsResult.rows) {
+      const locksResult = await pool.query('SELECT * FROM scheduled_locks WHERE court_id = $1', [court.id]);
+      
+      const currentLock = locksResult.rows.find(lock => 
         new Date(lock.start_time) <= now && new Date(lock.end_time) > now
       );
 
-      const isLocked = !!currentLock;
+      const shouldBeLocked = !!currentLock;
 
-      if (court.is_locked !== isLocked) {
-        await pool.query('UPDATE courts SET is_locked = $1 WHERE id = $2', [isLocked, court.id]);
-        console.log(`Updated court ${court.id} lock status to ${isLocked}`);
+      if (court.is_locked !== shouldBeLocked) {
+        await pool.query('UPDATE courts SET is_locked = $1 WHERE id = $2', [shouldBeLocked, court.id]);
+        console.log(`Updated court ${court.id} lock status to ${shouldBeLocked}`);
       }
     }
   } catch (error) {
