@@ -42,7 +42,7 @@ const fetchCourts = useCallback(async () => {
   }, [fetchCourts]);
 
 
-  useEffect(() => {
+/*  useEffect(() => {
     const timerInterval = setInterval(() => {
       setCourts(prevCourts => prevCourts.map(court => {
         if (court.remaining_time > 0 && court.active_players.length > 0) {
@@ -62,7 +62,7 @@ const fetchCourts = useCallback(async () => {
     }, 1000);
 
     return () => clearInterval(timerInterval);
-  }, []);
+  }, []);*/
 
 
   const handleCourtAction = (court, actionType) => {
