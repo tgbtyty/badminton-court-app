@@ -12,6 +12,7 @@ function PlayerRegister() {
   const [registrationResult, setRegistrationResult] = useState(null);
   const [showTimeoutWarning, setShowTimeoutWarning] = useState(false);
   const [timeoutCounter, setTimeoutCounter] = useState(5);
+  const [tournamentPlayer, setTournamentPlayer] = useState({ firstName: '', lastName: '' });
 
   const timeoutIdRef = useRef(null);
   const warningTimeoutIdRef = useRef(null);
