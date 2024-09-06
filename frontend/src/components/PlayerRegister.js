@@ -22,6 +22,7 @@ function PlayerRegister() {
     setStep('start');
     setHasPackage(false);
     setPlayer({ firstName: '', lastName: '' });
+    setTournamentPlayer({ firstName: '', lastName: '' }); // Reset tournament player
     setRegistrationResult(null);
     setShowTimeoutWarning(false);
     setTimeoutCounter(5);
@@ -51,7 +52,7 @@ function PlayerRegister() {
 
   useEffect(() => {
     let redirectTimer;
-    if (step === 'result') {
+    if (step === 'result' || step === 'tournamentResult') {
       redirectTimer = setTimeout(() => {
         resetToStart();
       }, 5000);
@@ -223,16 +224,16 @@ function PlayerRegister() {
               </button>
             </div>
           );
-        case 'tournamentResult':
-          return (
-            <div className="text-center">
-              <h3 className="text-2xl font-semibold mb-4 text-gray-800">Tournament Check-In Successful!</h3>
-              <p className="mb-2 text-3xl font-bold">
-                <span className="text-primary">Name:</span> {tournamentPlayer.firstName} {tournamentPlayer.lastName}
-              </p>
-              <p className="text-lg text-gray-600">Returning to start in 5 seconds...</p>
-            </div>
-          );
+          case 'tournamentResult':
+            return (
+              <div className="text-center">
+                <h3 className="text-2xl font-semibold mb-4 text-gray-800">Tournament Check-In Successful!</h3>
+                <p className="mb-2 text-3xl font-bold">
+                  <span className="text-primary">Name:</span> {tournamentPlayer.firstName} {tournamentPlayer.lastName}
+                </p>
+                <p className="text-lg text-gray-600">Returning to start in 5 seconds...</p>
+              </div>
+            );
         case 'result':
           return (
             <div className="text-center">
