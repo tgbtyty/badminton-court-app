@@ -917,6 +917,34 @@ app.get('/api/players/archived', authenticateToken, async (req, res) => {
   }
 });
 
+// Refresh Token for pages that want to maintain data transfer
+app.post('/api/refresh-token', async (req, res) => {
+  const { token } = req.body;
+  if (!token) {
+    return res.status(400).json({ message: 'Token is required' });
+  }
+
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const user = await pool.query('SELECT * FROM users WHERE id = $1', [decoded.id]);
+
+    if (user.rows.length === 0) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    const newToken = jwt.sign(
+      { id: user.rows[0].id, username: user.rows[0].username, userType: user.rows[0].user_type },
+      process.env.JWT_SECRET,
+      { expiresIn: '1h' }
+    );
+
+    res.json({ token: newToken });
+  } catch (error) {
+    console.error('Error refreshing token:', error);
+    res.status(401).json({ message: 'Invalid token' });
+  }
+});
+
 
 // Add this line near the end of your file, before startServer()
 setInterval(checkAndUpdateCourtLocks, 5000);

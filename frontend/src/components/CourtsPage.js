@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import axios from 'axios';
 import config from '../config';
 
+const TIMEOUT_DURATION = 30 * 60 * 1000;
 function CourtsPage() {
   const [courts, setCourts] = useState([]);
   const [selectedCourt, setSelectedCourt] = useState(null);
@@ -9,7 +10,18 @@ function CourtsPage() {
   const [playerCredentials, setPlayerCredentials] = useState([{ username: '', password: '' }]);
   const [queueError, setQueueError] = useState('');
   const [action, setAction] = useState('queue'); // 'queue' or 'remove'
+  const timeoutIdRef = useRef(null);
 
+
+  const resetTimeout = useCallback(() => {
+    if (timeoutIdRef.current) {
+      clearTimeout(timeoutIdRef.current);
+    }
+    timeoutIdRef.current = setTimeout(() => {
+      // Refresh the page after the timeout duration
+      window.location.reload();
+    }, TIMEOUT_DURATION);
+  }, []);
 
 // Fetching em courts
 const fetchCourts = useCallback(async () => {
@@ -17,29 +29,27 @@ const fetchCourts = useCallback(async () => {
     const response = await axios.get(`${config.apiBaseUrl}/courts`, {
       headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
     });
-    setCourts(prevCourts => {
-      return response.data.map(newCourt => {
-        const prevCourt = prevCourts.find(c => c.id === newCourt.id);
-        if (prevCourt && prevCourt.is_locked !== newCourt.is_locked) {
-          // If the lock status has changed, schedule an update after a short delay
-          setTimeout(() => {
-            setCourts(courts => courts.map(c => c.id === newCourt.id ? newCourt : c));
-          }, 500);
-          return prevCourt;
-        }
-        return newCourt;
-      });
-    });
+    setCourts(response.data);
+    resetTimeout(); // Reset the timeout on successful fetch
   } catch (error) {
     console.error('Error fetching courts:', error);
+    if (error.response && error.response.status === 401) {
+      // Token expired, redirect to login
+      window.location.href = '/login';
+    }
   }
-}, []);
+}, [resetTimeout]);
 
-  useEffect(() => {
-    fetchCourts();
-    const interval = setInterval(fetchCourts, 5000); // Refresh every 5 seconds
-    return () => clearInterval(interval);
-  }, [fetchCourts]);
+useEffect(() => {
+  fetchCourts();
+  const interval = setInterval(fetchCourts, 5000); // Refresh every 5 seconds
+  return () => {
+    clearInterval(interval);
+    if (timeoutIdRef.current) {
+      clearTimeout(timeoutIdRef.current);
+    }
+  };
+}, [fetchCourts]);
 
 
 /*  useEffect(() => {
@@ -75,6 +85,7 @@ const fetchCourts = useCallback(async () => {
     setPlayerCredentials([{ username: '', password: '' }]);
     setQueueError('');
     setAction(actionType);
+    resetTimeout(); // Reset timeout on user action
   };
 
 
@@ -105,9 +116,14 @@ const fetchCourts = useCallback(async () => {
       });
       setShowQueueModal(false);
       fetchCourts();
+      resetTimeout(); // Reset timeout on successful action
     } catch (error) {
       console.error(`Error ${action}ing players:`, error);
       setQueueError(error.response?.data?.message || `Error ${action}ing players. Please try again.`);
+      if (error.response && error.response.status === 401) {
+        // Token expired, redirect to login
+        window.location.href = '/login';
+      }
     }
   };
 
