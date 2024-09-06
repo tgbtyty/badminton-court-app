@@ -11,9 +11,9 @@ function HomePage() {
   const [showLockModal, setShowLockModal] = useState(false);
   const [selectedCourt, setSelectedCourt] = useState(null);
   const [lockStartTime, setLockStartTime] = useState('');
-  const [lockDuration, setLockDuration] = useState('');
   const [lockReason, setLockReason] = useState('');
   const [showColorPicker, setShowColorPicker] = useState(false);
+  const [lockDuration, setLockDuration] = useState({ hours: '', minutes: '' });
 
   const fetchCourts = useCallback(async () => {
     try {
@@ -98,23 +98,19 @@ function HomePage() {
 
   const lockCourt = async () => {
     try {
-      if (!lockStartTime || !lockDuration || !lockReason) {
+      if (!lockStartTime || !lockDuration.hours || !lockDuration.minutes || !lockReason) {
         throw new Error('Please fill in all fields');
       }
   
-      const today = new Date().toISOString().split('T')[0];
-      const startDateTime = new Date(`${today}T${lockStartTime}`);
+      const now = new Date();
+      const [hours, minutes] = lockStartTime.split(':').map(Number);
+      const startDateTime = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hours, minutes);
   
-      if (isNaN(startDateTime.getTime())) {
-        throw new Error('Invalid start time');
+      if (startDateTime < now) {
+        startDateTime.setDate(startDateTime.getDate() + 1); // If the time is earlier today, set it for tomorrow
       }
   
-      const [hours, minutes] = lockDuration.split(':').map(Number);
-      if (isNaN(hours) || isNaN(minutes)) {
-        throw new Error('Invalid duration');
-      }
-  
-      const durationInMinutes = hours * 60 + minutes;
+      const durationInMinutes = parseInt(lockDuration.hours) * 60 + parseInt(lockDuration.minutes);
       const endDateTime = new Date(startDateTime.getTime() + durationInMinutes * 60000);
   
       console.log('Sending lock request:', {
@@ -328,45 +324,64 @@ function HomePage() {
         </div>
       </main>
       {showLockModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-          <div className="bg-white p-6 rounded-lg">
-            <h2 className="text-xl font-semibold mb-4">Lock Court</h2>
-            <input
-              type="time"
-              value={lockStartTime}
-              onChange={(e) => setLockStartTime(e.target.value)}
-              className="block w-full mb-4 p-2 border rounded"
-            />
-            <input
-              type="time"
-              value={lockDuration}
-              onChange={(e) => setLockDuration(e.target.value)}
-              className="block w-full mb-4 p-2 border rounded"
-            />
-            <input
-              type="text"
-              value={lockReason}
-              onChange={(e) => setLockReason(e.target.value)}
-              placeholder="Reason for locking"
-              className="block w-full mb-4 p-2 border rounded"
-            />
-            <div className="flex justify-end space-x-2">
-              <button
-                onClick={() => setShowLockModal(false)}
-                className="bg-gray-300 text-black px-4 py-2 rounded hover:bg-gray-400 transition duration-300"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={lockCourt}
-                className="bg-primary text-white px-4 py-2 rounded hover:bg-green-600 transition duration-300"
-              >
-                Lock
-              </button>
-            </div>
-          </div>
+  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+    <div className="bg-white p-6 rounded-lg">
+      <h2 className="text-xl font-semibold mb-4">Lock Court</h2>
+      <div className="mb-4">
+        <label className="block text-sm font-medium text-gray-700">Start Time</label>
+        <input
+          type="time"
+          value={lockStartTime}
+          onChange={(e) => setLockStartTime(e.target.value)}
+          className="mt-1 block w-full p-2 border rounded"
+        />
+      </div>
+      <div className="mb-4">
+        <label className="block text-sm font-medium text-gray-700">Duration</label>
+        <div className="flex items-center">
+          <input
+            type="number"
+            value={lockDuration.hours}
+            onChange={(e) => setLockDuration(prev => ({ ...prev, hours: e.target.value }))}
+            min="0"
+            className="mt-1 block w-20 p-2 border rounded mr-2"
+          />
+          <span className="mr-2">hours</span>
+          <input
+            type="number"
+            value={lockDuration.minutes}
+            onChange={(e) => setLockDuration(prev => ({ ...prev, minutes: e.target.value }))}
+            min="0"
+            max="59"
+            className="mt-1 block w-20 p-2 border rounded mr-2"
+          />
+          <span>minutes</span>
         </div>
-      )}
+      </div>
+      <input
+        type="text"
+        value={lockReason}
+        onChange={(e) => setLockReason(e.target.value)}
+        placeholder="Reason for locking"
+        className="block w-full mb-4 p-2 border rounded"
+      />
+      <div className="flex justify-end space-x-2">
+        <button
+          onClick={() => setShowLockModal(false)}
+          className="bg-gray-300 text-black px-4 py-2 rounded hover:bg-gray-400 transition duration-300"
+        >
+          Cancel
+        </button>
+        <button
+          onClick={lockCourt}
+          className="bg-primary text-white px-4 py-2 rounded hover:bg-green-600 transition duration-300"
+        >
+          Lock
+        </button>
+      </div>
+    </div>
+  </div>
+)}
       {showColorPicker && (
         <div className="absolute top-16 right-4 z-10">
           <ThemeColorPicker />
