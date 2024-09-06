@@ -135,9 +135,9 @@ function PlayerRegister() {
             >
               Tournament Check In
             </button>
-            <button onClick={() => { setStep('dropIn'); resetTimeout(); }} className="w-full bg-primary text-white py-3 text-xl rounded-md hover:bg-green-600 transition duration-300">Drop In</button>
+            {/* <button onClick={() => { setStep('dropIn'); resetTimeout(); }} className="w-full bg-primary text-white py-3 text-xl rounded-md hover:bg-green-600 transition duration-300">Drop In</button>
             <button onClick={() => { setStep('classSignIn'); resetTimeout(); }} className="w-full bg-primary text-white py-3 text-xl rounded-md hover:bg-green-600 transition duration-300">Sign in for Class</button>
-            <button onClick={() => { setStep('courtReservation'); resetTimeout(); }} className="w-full bg-primary text-white py-3 text-xl rounded-md hover:bg-green-600 transition duration-300">Court Reservation</button>
+            <button onClick={() => { setStep('courtReservation'); resetTimeout(); }} className="w-full bg-primary text-white py-3 text-xl rounded-md hover:bg-green-600 transition duration-300">Court Reservation</button> */}
           </div>
         );
       case 'dropIn':
