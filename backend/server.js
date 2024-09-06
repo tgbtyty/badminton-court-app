@@ -387,14 +387,14 @@ app.get('/api/courts', authenticateToken, async (req, res) => {
       // Calculate remaining time for active players
       let remainingTime = calculateRemainingTime(court, activePlayers.rows);
 
-      const isLocked = !!currentLock;
-
       return {
         ...court,
         locks: locksResult.rows,
         active_players: activePlayers.rows,
+        active_player_count: activePlayers.rows.length,
         waiting_groups: waitingGroups,
-        is_locked: isLocked,
+        waiting_player_count: waitingPlayersResult.rows.length,
+        is_locked: !!currentLock,
         current_lock: currentLock || null,
         future_locks: futureLocks,
         remaining_time: remainingTime
@@ -510,6 +510,7 @@ app.delete('/api/courts/:id', authenticateToken, async (req, res) => {
 });
 
 // Lock a court
+// Lock a court
 app.post('/api/courts/:id/lock', authenticateToken, async (req, res) => {
   const client = await pool.connect();
   try {
@@ -537,8 +538,8 @@ app.post('/api/courts/:id/lock', authenticateToken, async (req, res) => {
       [id, startDateTime, endDateTime, reason]
     );
 
-    // Update the court's is_locked status
-    await client.query('UPDATE courts SET is_locked = true WHERE id = $1', [id]);
+    // We no longer update the court's is_locked status here
+    // The checkAndUpdateCourtLocks function will handle this
 
     await client.query('COMMIT');
 
@@ -918,6 +919,6 @@ app.get('/api/players/archived', authenticateToken, async (req, res) => {
 
 
 // Add this line near the end of your file, before startServer()
-setInterval(checkAndUpdateCourtLocks, 60000);
+setInterval(checkAndUpdateCourtLocks, 5000);
 
 startServer();
