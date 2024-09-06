@@ -101,28 +101,28 @@ function HomePage() {
       if (!lockStartTime || !lockDuration || !lockReason) {
         throw new Error('Please fill in all fields');
       }
-
+  
       const today = new Date().toISOString().split('T')[0];
       const startDateTime = new Date(`${today}T${lockStartTime}`);
-
+  
       if (isNaN(startDateTime.getTime())) {
         throw new Error('Invalid start time');
       }
-
+  
       const [hours, minutes] = lockDuration.split(':').map(Number);
       if (isNaN(hours) || isNaN(minutes)) {
         throw new Error('Invalid duration');
       }
-
+  
       const durationInMinutes = hours * 60 + minutes;
       const endDateTime = new Date(startDateTime.getTime() + durationInMinutes * 60000);
-
+  
       console.log('Sending lock request:', {
         startTime: startDateTime.toISOString(),
         endTime: endDateTime.toISOString(),
         reason: lockReason
       });
-
+  
       const response = await axios.post(`${config.apiBaseUrl}/courts/${selectedCourt.id}/lock`, {
         startTime: startDateTime.toISOString(),
         endTime: endDateTime.toISOString(),
@@ -130,7 +130,7 @@ function HomePage() {
       }, {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
       });
-
+  
       console.log('Lock court response:', response.data);
       setShowLockModal(false);
       fetchCourts();
@@ -151,6 +151,7 @@ function HomePage() {
       fetchCourts();
     } catch (error) {
       console.error('Error removing lock:', error);
+      alert('Failed to remove lock. Please try again.');
     }
   };
 
@@ -226,6 +227,12 @@ function HomePage() {
             <p>From: {formatDateTime(court.current_lock.start_time)}</p>
             <p>Until: {formatDateTime(court.current_lock.end_time)}</p>
             <p>Reason: {court.current_lock.reason}</p>
+            <button
+              onClick={() => removeLock(court.id, court.current_lock.id)}
+              className="text-red-500 hover:text-red-700 mt-2"
+            >
+              Remove
+            </button>
           </div>
         )}
         <p className="mb-2">Active Players: {court.active_player_count}</p>
@@ -269,14 +276,6 @@ function HomePage() {
           >
             Lock Court
           </button>
-          {court.is_locked && (
-            <button
-              onClick={() => unlockCourt(court.id)}
-              className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition duration-300"
-            >
-              Unlock Court
-            </button>
-          )}
           <button
             onClick={() => {
               if (window.confirm('Are you sure you want to remove this court?')) {
