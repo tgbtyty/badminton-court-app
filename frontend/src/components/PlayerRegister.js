@@ -90,6 +90,21 @@ function PlayerRegister() {
     }
   };
 
+  const registerTournamentPlayer = async () => {
+    try {
+      const response = await axios.post(`${config.apiBaseUrl}/register-players`, {
+        players: [tournamentPlayer],
+        useDropInPackage: false,
+        packageUses: 0,
+      });
+      setRegistrationResult(response.data);
+      setStep('tournamentResult');
+    } catch (error) {
+      console.error('Tournament player registration error', error);
+      alert('Tournament player registration failed. Please try again.');
+    }
+  };
+
   const goBack = () => {
     switch (step) {
       case 'dropIn':
@@ -112,6 +127,12 @@ function PlayerRegister() {
       case 'start':
         return (
           <div className="space-y-4">
+            <button 
+              onClick={() => { setStep('tournamentCheckIn'); resetTimeout(); }} 
+              className="w-full bg-yellow-500 text-white py-3 text-xl rounded-md hover:bg-yellow-600 transition duration-300"
+            >
+              Tournament Check In
+            </button>
             <button onClick={() => { setStep('dropIn'); resetTimeout(); }} className="w-full bg-primary text-white py-3 text-xl rounded-md hover:bg-green-600 transition duration-300">Drop In</button>
             <button onClick={() => { setStep('classSignIn'); resetTimeout(); }} className="w-full bg-primary text-white py-3 text-xl rounded-md hover:bg-green-600 transition duration-300">Sign in for Class</button>
             <button onClick={() => { setStep('courtReservation'); resetTimeout(); }} className="w-full bg-primary text-white py-3 text-xl rounded-md hover:bg-green-600 transition duration-300">Court Reservation</button>
@@ -165,6 +186,52 @@ function PlayerRegister() {
             <button onClick={() => { setStep('start'); resetTimeout(); }} className="w-full bg-primary text-white py-3 text-xl rounded-md hover:bg-green-600 transition duration-300">Back to Start</button>
           </div>
         );
+
+        case 'tournamentCheckIn':
+          return (
+            <div className="space-y-4">
+              <input
+                type="text"
+                name="firstName"
+                placeholder="First Name"
+                value={tournamentPlayer.firstName}
+                onChange={(e) => {
+                  setTournamentPlayer({ ...tournamentPlayer, firstName: e.target.value });
+                  resetTimeout();
+                }}
+                className="w-full px-4 py-3 text-lg border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                required
+              />
+              <input
+                type="text"
+                name="lastName"
+                placeholder="Last Name"
+                value={tournamentPlayer.lastName}
+                onChange={(e) => {
+                  setTournamentPlayer({ ...tournamentPlayer, lastName: e.target.value });
+                  resetTimeout();
+                }}
+                className="w-full px-4 py-3 text-lg border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                required
+              />
+              <button 
+                onClick={() => { registerTournamentPlayer(); resetTimeout(); }} 
+                className="w-full bg-yellow-500 text-white py-3 text-xl rounded-md hover:bg-yellow-600 transition duration-300"
+              >
+                Confirm Check In!
+              </button>
+            </div>
+          );
+        case 'tournamentResult':
+          return (
+            <div className="text-center">
+              <h3 className="text-2xl font-semibold mb-4 text-gray-800">Tournament Check-In Successful!</h3>
+              <p className="mb-2 text-3xl font-bold">
+                <span className="text-primary">Name:</span> {tournamentPlayer.firstName} {tournamentPlayer.lastName}
+              </p>
+              <p className="text-lg text-gray-600">Returning to start in 5 seconds...</p>
+            </div>
+          );
         case 'result':
           return (
             <div className="text-center">
