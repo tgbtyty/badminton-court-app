@@ -129,15 +129,15 @@ function PlayerRegister() {
       case 'start':
         return (
           <div className="space-y-4">
-            <button 
+          {/*<button 
               onClick={() => { setStep('tournamentCheckIn'); resetTimeout(); }} 
               className="w-full bg-yellow-500 text-white py-3 text-xl rounded-md hover:bg-yellow-600 transition duration-300"
             >
               Tournament Check In
-            </button>
-            {/* <button onClick={() => { setStep('dropIn'); resetTimeout(); }} className="w-full bg-primary text-white py-3 text-xl rounded-md hover:bg-green-600 transition duration-300">Drop In</button>
+            </button>*/}
+            <button onClick={() => { setStep('dropIn'); resetTimeout(); }} className="w-full bg-primary text-white py-3 text-xl rounded-md hover:bg-green-600 transition duration-300">Drop In</button>
             <button onClick={() => { setStep('classSignIn'); resetTimeout(); }} className="w-full bg-primary text-white py-3 text-xl rounded-md hover:bg-green-600 transition duration-300">Sign in for Class</button>
-            <button onClick={() => { setStep('courtReservation'); resetTimeout(); }} className="w-full bg-primary text-white py-3 text-xl rounded-md hover:bg-green-600 transition duration-300">Court Reservation</button> */}
+            <button onClick={() => { setStep('courtReservation'); resetTimeout(); }} className="w-full bg-primary text-white py-3 text-xl rounded-md hover:bg-green-600 transition duration-300">Court Reservation</button>
           </div>
         );
       case 'dropIn':
